@@ -1,9 +1,9 @@
 import NextAuth from "next-auth"
-import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import Email from "next-auth/providers/email";
 import PostgresAdapter from "@auth/pg-adapter"
 import { Pool } from "pg"
+import type { NextAuthOptions } from "next-auth";
 
 let cid = process.env.GOOGLE_CLIENT_ID
 if (cid === undefined) {
@@ -62,16 +62,6 @@ export const authOptions: NextAuthOptions = {
 	pages: {
 		// signIn: '/auth/signin',
 		error: '/auth/error',
-	},
-	callbacks: {
-		async signIn(arg) {
-			console.log("SIGN IN CALLBACK: ", arg)
-			return true
-		},
-		async session(arg) {
-			console.log("SESSION CALLBACK: ", arg)
-			return arg.session
-		}
 	},
 	adapter: PostgresAdapter(pool),
 }
