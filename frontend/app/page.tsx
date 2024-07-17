@@ -1,14 +1,7 @@
-import { auth } from './api/auth/[...nextauth]/auth'
-import List from './list'
-import Nav from './nav'
-
-export default async function Home() {
-	const session = await auth()
-	return (
-		<div className="bg-zinc-50 h-dvh">
-			<Nav session={session} />
-			<hr className='' />
-			<List />
-		</div>
-	)
+export default function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      <h1>Hello JS</h1>
+    </main>
+  );
 }

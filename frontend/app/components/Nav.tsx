@@ -1,11 +1,16 @@
 'use client'
-import React, { ReactNode, useEffect, useRef, useState } from 'react';
-import Image from 'next/image'
-import { MdVideoLibrary } from "react-icons/md"
-import { BsCartPlusFill } from "react-icons/bs"
-import { GiHamburgerMenu } from "react-icons/gi";
-import { FaUserCircle } from "react-icons/fa";
-import { RiSearch2Line } from "react-icons/ri";
+
+import Image from 'next/image';
+import { selectSearchBy, toogleSearchBy } from '@/lib/features/search/searchSlice';
+import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import classNames from 'classnames';
+import { useSession } from 'next-auth/react';
+import { MutableRefObject, ReactNode, useEffect, useRef, useState } from 'react';
+import { BsCartPlusFill } from 'react-icons/bs';
+import { FaUserCircle } from 'react-icons/fa';
+import { GiHamburgerMenu } from 'react-icons/gi';
+import { MdVideoLibrary } from 'react-icons/md';
+import { RiSearch2Line } from 'react-icons/ri';
 
 function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
     const [bgColor, setBgColor] = useState(normalColor)
@@ -26,7 +31,49 @@ function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefin
     )
 }
 
-function ListItems({ user, nodeRef }) {
+function CategoryBtn() {
+    const searchBy = useAppSelector(selectSearchBy)
+    const calClassName = (category: string) => {
+        let cls = classNames('rounded-full', 'w-28', 'h-10', 'hover:cursor-pointer')
+        if (category === searchBy) {
+            cls = classNames(cls, 'font-semibold')
+        } else {
+            cls = classNames(cls, 'font-light', 'hover:bg-gray-200 hover:font-normal')
+        }
+        return cls
+    }
+    const dispatch = useAppDispatch()
+    return (
+        <div className="justify-self-center flex flex-row text-lg">
+            <button className={calClassName('video')} onClick={() => dispatch(toogleSearchBy())}>Videos</button>
+            <button className={calClassName('product')} onClick={() => dispatch(toogleSearchBy())}>Products</button>
+        </div>
+    )
+}
+
+function UpperRightCorner() {
+    const { data: session } = useSession()
+    const user = session?.user
+    const Avatar = () => {
+        if (!user) {
+            return (<span className="px-2"><FaUserCircle size={30} /></span>)
+        } else {
+            return (<span className="px-2"><Image src={user.image ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" /></span>)
+        }
+    }
+    const ref = useRef(null);
+    return (
+        <div ref={ref} className="relative inline-block text-left">
+            <button className="flex flex-row border-2 px-3 py-1 rounded-full items-center hover:shadow-md">
+                <GiHamburgerMenu size={30} />
+                <Avatar />
+            </button>
+            <ListItems user={user} nodeRef={ref} />
+        </div>
+    )
+}
+
+function ListItems({ user, nodeRef }: { user: Object | null | undefined, nodeRef: MutableRefObject<any> }) {
     const [showDropList, setShowDropList] = useState(false)
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -40,9 +87,8 @@ function ListItems({ user, nodeRef }) {
         return () => {
             document.removeEventListener('click', handleClickOutside, true);
         };
-    }, []);
-
-    const Items = () => {
+    }, [nodeRef]);
+    const items = () => {
         if (user === undefined) {
             return (
                 <div className="py-2">
@@ -62,52 +108,12 @@ function ListItems({ user, nodeRef }) {
     let className = (showDropList ? 'visible ' : 'invisible ') + "absolute right-0 z-10 mt-1 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
     return (
         <div className={className} tabIndex={-1}>
-            <Items />
+            {items()}
         </div>
     )
 }
 
-function UpperRightCorner({ session }) {
-    const ref = useRef(null);
-    const user = session?.user
-    const Avatar = () => {
-        if (user === undefined) {
-            return (<span className="px-2"><FaUserCircle size={30} /></span>)
-        } else {
-            return (<span className="px-2"><Image src="/sky.jpg" width={30} height={30} alt="Picture of Profile" className='w-8 h-8 rounded-full' /></span>)
-        }
-    }
-    return (
-        <div ref={ref} className="relative inline-block text-left">
-            <button className="flex flex-row border-2 px-2 py-1 rounded-full items-center hover:shadow-md">
-                <GiHamburgerMenu size={30} />
-                <Avatar />
-            </button>
-            <ListItems user={user} nodeRef={ref} />
-        </div>
-    )
-}
-
-function CategoryBtn() {
-    const [searchCategory, setSerachCategory] = useState('video')
-    const getClass = (category: string) => {
-        let s = "rounded-full w-28 h-10 hover:cursor-pointer"
-        if (category === searchCategory) {
-            s += ' font-semibold'
-        } else {
-            s += ' font-light hover:bg-gray-200 hover:font-normal'
-        }
-        return s
-    }
-    return (
-        <div className="justify-self-center flex flex-row text-lg">
-            <button className={getClass('video')} onClick={() => setSerachCategory('video')}>Videos</button>
-            <button className={getClass('product')} onClick={() => setSerachCategory('product')}>Products</button>
-        </div>
-    )
-}
-
-export default function HomepageNav({ session }) {
+export default function Nav() {
     return (
         <nav className="flex flex-col px-20 py-5">
             <div className="grid grid-cols-3">
@@ -124,7 +130,7 @@ export default function HomepageNav({ session }) {
                         <BsCartPlusFill size={18} />
                         <span className="text-sm text-white">Cart</span>
                     </button>
-                    <UpperRightCorner session={session} />
+                    <UpperRightCorner />
                 </div>
             </div>
             <div className="self-center grid grid-cols-2 border rounded-full shadow-lg">
