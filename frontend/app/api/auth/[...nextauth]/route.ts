@@ -7,15 +7,15 @@ import type { NextAuthOptions } from "next-auth";
 
 let cid = process.env.GOOGLE_CLIENT_ID
 if (cid === undefined) {
-	throw 'env GOOGLE_CLIENT_ID is not set'
+	throw new Error('env GOOGLE_CLIENT_ID is not set')
 }
 let csecret = process.env.GOOGLE_CLIENT_SECRET
 if (csecret === undefined) {
-	throw 'env GOOGLE_CLIENT_SECRET is not set'
+	throw new Error('env GOOGLE_CLIENT_SECRET is not set')
 }
 let portStr = process.env.DATABASE_PORT
 if (portStr === undefined) {
-	throw 'env DATABASE_PORT is not set'
+	throw new Error('env DATABASE_PORT is not set')
 }
 let dbPort = parseInt(portStr)
 

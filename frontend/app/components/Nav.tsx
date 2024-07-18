@@ -1,16 +1,22 @@
 'use client'
 
-import Image from 'next/image';
 import { selectSearchBy, toogleSearchBy } from '@/lib/features/search/searchSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import classNames from 'classnames';
 import { useSession } from 'next-auth/react';
+import Image from 'next/image';
 import { MutableRefObject, ReactNode, useEffect, useRef, useState } from 'react';
 import { BsCartPlusFill } from 'react-icons/bs';
 import { FaUserCircle } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { MdVideoLibrary } from 'react-icons/md';
 import { RiSearch2Line } from 'react-icons/ri';
+
+import { displayUploader } from '@/lib/features/uploader/uploader';
+import '@uppy/core/dist/style.min.css';
+import '@uppy/dashboard/dist/style.min.css';
+import { createUppy } from '@/lib/uppy';
+import { Dashboard, useUppyEvent } from '@uppy/react';
 
 function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
     const [bgColor, setBgColor] = useState(normalColor)
@@ -114,6 +120,11 @@ function ListItems({ user, nodeRef }: { user: Object | null | undefined, nodeRef
 }
 
 export default function Nav() {
+    const dispatch = useAppDispatch()
+    // const [uppy] = useState(() => createUppy({ env: "testing" }));
+    // useUppyEvent(uppy, 'transloadit:assembly-created', (args) => {
+    //     console.log('transloadit:assembly-created ----- ', args)
+    // })
     return (
         <nav className="flex flex-col px-20 py-5">
             <div className="grid grid-cols-3">
@@ -122,7 +133,7 @@ export default function Nav() {
                 </div>
                 <CategoryBtn />
                 <div className="justify-self-end flex flex-row gap-x-1">
-                    <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500">
+                    <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500 select-file-button" onClick={() => dispatch(displayUploader())}>
                         <MdVideoLibrary size={18} />
                         <span className="text-sm text-white">Upload</span>
                     </button>
