@@ -19,7 +19,5 @@ export function createUppy(meta: Object) {
                 const opts = await res.json()
                 return { ...opts, fields: meta }
             },
-            waitForEncoding: false,
-            waitForMetadata: false,
         })
 }

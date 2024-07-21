@@ -1,22 +1,24 @@
 'use client'
 
 import { selectSearchBy, toogleSearchBy } from '@/lib/features/search/searchSlice';
+import { displayUploader } from '@/lib/features/uploader/uploader';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import '@uppy/core/dist/style.min.css';
+import '@uppy/dashboard/dist/style.min.css';
 import classNames from 'classnames';
-import { useSession } from 'next-auth/react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { MutableRefObject, ReactNode, useEffect, useRef, useState } from 'react';
 import { BsCartPlusFill } from 'react-icons/bs';
 import { FaUserCircle } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { MdVideoLibrary } from 'react-icons/md';
 import { RiSearch2Line } from 'react-icons/ri';
+import Notice from './Notice';
 
-import { displayUploader } from '@/lib/features/uploader/uploader';
-import '@uppy/core/dist/style.min.css';
-import '@uppy/dashboard/dist/style.min.css';
-import { createUppy } from '@/lib/uppy';
-import { Dashboard, useUppyEvent } from '@uppy/react';
+function useSession() {
+    return { ddata: null }
+}
 
 function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
     const [bgColor, setBgColor] = useState(normalColor)
@@ -119,35 +121,65 @@ function ListItems({ user, nodeRef }: { user: Object | null | undefined, nodeRef
     )
 }
 
+function loginNotice(show: boolean, setVisibility: (a: boolean) => void) {
+    const cancel = () => {
+        setVisibility(false)
+    }
+    if (show) {
+        return (
+            <Notice>
+                <div className="mb-8">
+                    <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
+                    <p className="text-gray-600">Log in to enjoy most of the app</p>
+                </div>
+                <div className="space-y-4">
+                    <Link href="/api/auth/signin">
+                        <button className="p-3 bg-black rounded-full text-white w-full font-semibold">Log in</button>
+                    </Link>
+                    <button className="p-3 bg-white border rounded-full w-full font-semibold" onClick={cancel}>Skip for now</button>
+                </div>
+            </Notice>
+        )
+    }
+}
+
 export default function Nav() {
+    const [showLoginNotice, setShowLoginNotice] = useState(false)
     const dispatch = useAppDispatch()
-    // const [uppy] = useState(() => createUppy({ env: "testing" }));
-    // useUppyEvent(uppy, 'transloadit:assembly-created', (args) => {
-    //     console.log('transloadit:assembly-created ----- ', args)
-    // })
+    const { data: session } = useSession()
+    const openUploaderIfSignedIn = () => {
+        if (!session) {
+            setShowLoginNotice(true)
+            return
+        }
+        dispatch(displayUploader())
+    }
     return (
-        <nav className="flex flex-col px-20 py-5">
-            <div className="grid grid-cols-3">
-                <div className="">
-                    <Image src="/airbnb-color.svg" width={30} height={30} alt="Logo" />
+        <>
+            <nav className="flex flex-col px-12 py-5">
+                <div className="grid grid-cols-3">
+                    <div className="">
+                        <Image src="/airbnb-color.svg" width={30} height={30} alt="Logo" />
+                    </div>
+                    <CategoryBtn />
+                    <div className="justify-self-end flex flex-row gap-x-1">
+                        <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500 select-file-button" onClick={openUploaderIfSignedIn}>
+                            <MdVideoLibrary size={18} />
+                            <span className="text-sm text-white">Upload</span>
+                        </button>
+                        <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500">
+                            <BsCartPlusFill size={18} />
+                            <span className="text-sm text-white">Cart</span>
+                        </button>
+                        <UpperRightCorner />
+                    </div>
                 </div>
-                <CategoryBtn />
-                <div className="justify-self-end flex flex-row gap-x-1">
-                    <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500 select-file-button" onClick={() => dispatch(displayUploader())}>
-                        <MdVideoLibrary size={18} />
-                        <span className="text-sm text-white">Upload</span>
-                    </button>
-                    <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500">
-                        <BsCartPlusFill size={18} />
-                        <span className="text-sm text-white">Cart</span>
-                    </button>
-                    <UpperRightCorner />
+                <div className="self-center grid grid-cols-2 border rounded-full shadow-lg">
+                    <BgColorInput normalColor={'bg-white'} hoverColor={'bg-gray-200'} labelName={'Where'} hint='Search countries' />
+                    <BgColorInput normalColor={'bg-white'} hoverColor={'bg-gray-200'} labelName={'What'} hint='Search keyword' icon={<RiSearch2Line size={40} className='rounded-full text-white bg-red-500 px-2 py-2 hover:cursor-pointer' />} />
                 </div>
-            </div>
-            <div className="self-center grid grid-cols-2 border rounded-full shadow-lg">
-                <BgColorInput normalColor={'bg-white'} hoverColor={'bg-gray-200'} labelName={'Where'} hint='Search countries' />
-                <BgColorInput normalColor={'bg-white'} hoverColor={'bg-gray-200'} labelName={'What'} hint='Search keyword' icon={<RiSearch2Line size={40} className='rounded-full text-white bg-red-500 px-2 py-2 hover:cursor-pointer' />} />
-            </div>
-        </nav>
+            </nav>
+            {loginNotice(showLoginNotice, setShowLoginNotice)}
+        </>
     )
 }

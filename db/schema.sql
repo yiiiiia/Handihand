@@ -9,35 +9,42 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: accounts; Type: TABLE; Schema: public; Owner: -
+-- Name: account; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.accounts (
+CREATE TABLE public.account (
     id integer NOT NULL,
-    "userId" integer,
-    type character varying(255) NOT NULL,
-    provider character varying(255) NOT NULL,
-    "providerAccountId" character varying(255) NOT NULL,
-    refresh_token text,
-    access_token text,
-    expires_at bigint,
-    id_token text,
-    scope text,
-    session_state text,
-    token_type text
+    email text NOT NULL,
+    password text NOT NULL,
+    state text NOT NULL,
+    created_at timestamp with time zone NOT NULL
 );
 
 
 --
--- Name: accounts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: account_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE public.accounts_id_seq
+CREATE SEQUENCE public.account_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -47,10 +54,10 @@ CREATE SEQUENCE public.accounts_id_seq
 
 
 --
--- Name: accounts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: account_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.accounts_id_seq OWNED BY public.accounts.id;
+ALTER SEQUENCE public.account_id_seq OWNED BY public.account.id;
 
 
 --
@@ -63,22 +70,23 @@ CREATE TABLE public.schema_migrations (
 
 
 --
--- Name: sessions; Type: TABLE; Schema: public; Owner: -
+-- Name: session; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sessions (
+CREATE TABLE public.session (
     id integer NOT NULL,
-    "userId" integer,
-    expires timestamp with time zone NOT NULL,
-    "sessionToken" character varying(255) NOT NULL
+    user_id integer NOT NULL,
+    expire_at timestamp with time zone NOT NULL,
+    token text NOT NULL,
+    csrf text NOT NULL
 );
 
 
 --
--- Name: sessions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: session_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE public.sessions_id_seq
+CREATE SEQUENCE public.session_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -88,83 +96,40 @@ CREATE SEQUENCE public.sessions_id_seq
 
 
 --
--- Name: sessions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: session_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.sessions_id_seq OWNED BY public.sessions.id;
-
-
---
--- Name: users; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.users (
-    id integer NOT NULL,
-    name character varying(255),
-    email character varying(255),
-    "emailVerified" timestamp with time zone,
-    image text
-);
+ALTER SEQUENCE public.session_id_seq OWNED BY public.session.id;
 
 
 --
--- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: account id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE public.users_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+ALTER TABLE ONLY public.account ALTER COLUMN id SET DEFAULT nextval('public.account_id_seq'::regclass);
 
 
 --
--- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: session id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
-
-
---
--- Name: verification_token; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.verification_token (
-    identifier text NOT NULL,
-    expires timestamp with time zone NOT NULL,
-    token text NOT NULL
-);
+ALTER TABLE ONLY public.session ALTER COLUMN id SET DEFAULT nextval('public.session_id_seq'::regclass);
 
 
 --
--- Name: accounts id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: account account_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.accounts ALTER COLUMN id SET DEFAULT nextval('public.accounts_id_seq'::regclass);
-
-
---
--- Name: sessions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sessions ALTER COLUMN id SET DEFAULT nextval('public.sessions_id_seq'::regclass);
+ALTER TABLE ONLY public.account
+    ADD CONSTRAINT account_email_key UNIQUE (email);
 
 
 --
--- Name: users id; Type: DEFAULT; Schema: public; Owner: -
+-- Name: account account_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
-
-
---
--- Name: accounts accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.accounts
-    ADD CONSTRAINT accounts_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.account
+    ADD CONSTRAINT account_pkey PRIMARY KEY (id);
 
 
 --
@@ -176,43 +141,19 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
--- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: session session_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.sessions
-    ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
-
-
---
--- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.session
+    ADD CONSTRAINT session_pkey PRIMARY KEY (id);
 
 
 --
--- Name: verification_token verification_token_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: session session_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.verification_token
-    ADD CONSTRAINT verification_token_pkey PRIMARY KEY (identifier, token);
-
-
---
--- Name: accounts accounts_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.accounts
-    ADD CONSTRAINT "accounts_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id);
-
-
---
--- Name: sessions sessions_userId_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.sessions
-    ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES public.users(id);
+ALTER TABLE ONLY public.session
+    ADD CONSTRAINT session_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.account(id);
 
 
 --

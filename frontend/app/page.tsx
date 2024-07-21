@@ -1,11 +1,13 @@
-import Uploader from "./components/Uploader";
+import Nav from "./ui/Nav";
+import Uploader from "./ui/Uploader";
 
 export default function Home() {
   return (
     <>
-      <section className="flex h-screen flex-col items-center justify-between p-24">
+      <Nav />
+      <section className="flex flex-col items-center justify-between p-24">
+        <Uploader />
       </section>
-      <Uploader />
     </>
   );
 }

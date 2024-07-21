@@ -1,9 +1,14 @@
 import { pathGetAssemblyOptions } from '@/lib/uppy'
+import { StatusCodes } from 'http-status-codes'
 import crypto from 'node:crypto'
 
 export { handler as GET, handler as POST }
 
 function utcDateString(ms: number) {
+    const session = null
+    if (!session) {
+        return new Response('Please login first', { status: 403 })
+    }
     return new Date(ms)
         .toISOString()
         .replace(/-/g, '/')
@@ -11,7 +16,11 @@ function utcDateString(ms: number) {
         .replace(/\.\d+Z$/, '+00:00')
 }
 
-function handler(req: Request, { params }: { params: { path: string } }) {
+async function handler(req: Request, { params }: { params: { path: string } }) {
+    const session = await null
+    if (!session) {
+        return new Response('unauthorized access', { status: StatusCodes.UNAUTHORIZED })
+    }
     if (req.method === 'GET') {
         switch (params.path) {
             case pathGetAssemblyOptions: {
@@ -22,7 +31,7 @@ function handler(req: Request, { params }: { params: { path: string } }) {
 }
 
 function handleGetTransloaditParam(req: Request) {
-    const err = new Response('Internal Server Error', { status: 500 })
+    const err = new Response('Internal Server Error', { status: StatusCodes.INTERNAL_SERVER_ERROR })
     const key = process.env.TRANSLOADIT_AUTH_KEY
     if (!key) {
         return err

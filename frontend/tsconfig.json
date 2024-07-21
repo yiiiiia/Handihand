@@ -20,8 +20,16 @@
     ],
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "pages/404.jsx"
+  ],
   "exclude": ["node_modules"]
 }
