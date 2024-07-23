@@ -8,17 +8,14 @@ import '@uppy/dashboard/dist/style.min.css';
 import classNames from 'classnames';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MutableRefObject, ReactNode, useEffect, useRef, useState } from 'react';
+import { MutableRefObject, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { BsCartPlusFill } from 'react-icons/bs';
 import { FaUserCircle } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { MdVideoLibrary } from 'react-icons/md';
 import { RiSearch2Line } from 'react-icons/ri';
-import Notice from './Notice';
-
-function useSession() {
-    return { ddata: null }
-}
+import Modal from './Modal';
+import { SessionContext } from '../SessionProvider';
 
 function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
     const [bgColor, setBgColor] = useState(normalColor)
@@ -60,13 +57,12 @@ function CategoryBtn() {
 }
 
 function UpperRightCorner() {
-    const { data: session } = useSession()
-    const user = session?.user
+    const session = useContext(SessionContext)
     const Avatar = () => {
-        if (!user) {
+        if (!session?.avatar) {
             return (<span className="px-2"><FaUserCircle size={30} /></span>)
         } else {
-            return (<span className="px-2"><Image src={user.image ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" /></span>)
+            return (<span className="px-2"><Image src={session.avatar ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" /></span>)
         }
     }
     const ref = useRef(null);
@@ -76,12 +72,13 @@ function UpperRightCorner() {
                 <GiHamburgerMenu size={30} />
                 <Avatar />
             </button>
-            <ListItems user={user} nodeRef={ref} />
+            <ListItems nodeRef={ref} />
         </div>
     )
 }
 
-function ListItems({ user, nodeRef }: { user: Object | null | undefined, nodeRef: MutableRefObject<any> }) {
+function ListItems({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
+    const session = useContext(SessionContext)
     const [showDropList, setShowDropList] = useState(false)
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -97,7 +94,7 @@ function ListItems({ user, nodeRef }: { user: Object | null | undefined, nodeRef
         };
     }, [nodeRef]);
     const items = () => {
-        if (user === undefined) {
+        if (!session) {
             return (
                 <div className="py-2">
                     <a href="/api/auth/signin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Sign up / Log in</a>
@@ -127,7 +124,7 @@ function loginNotice(show: boolean, setVisibility: (a: boolean) => void) {
     }
     if (show) {
         return (
-            <Notice>
+            <Modal>
                 <div className="mb-8">
                     <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
                     <p className="text-gray-600">Log in to enjoy most of the app</p>
@@ -138,15 +135,15 @@ function loginNotice(show: boolean, setVisibility: (a: boolean) => void) {
                     </Link>
                     <button className="p-3 bg-white border rounded-full w-full font-semibold" onClick={cancel}>Skip for now</button>
                 </div>
-            </Notice>
+            </Modal>
         )
     }
 }
 
 export default function Nav() {
+    const session = useContext(SessionContext)
     const [showLoginNotice, setShowLoginNotice] = useState(false)
     const dispatch = useAppDispatch()
-    const { data: session } = useSession()
     const openUploaderIfSignedIn = () => {
         if (!session) {
             setShowLoginNotice(true)

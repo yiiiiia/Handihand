@@ -1,6 +1,6 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Login from "./login";
-import Register from "./register";
+import SignUp from "./signup";
 import VerifyEmail from "./verify";
 
 export default function Page({
@@ -14,7 +14,7 @@ export default function Page({
         case "login":
             return <Login />
         case "register":
-            return <Register />
+            return <SignUp />
         case "verify":
             return <VerifyEmail searchParams={searchParams} />
         default:

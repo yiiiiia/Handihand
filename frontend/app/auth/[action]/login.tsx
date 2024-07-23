@@ -1,6 +1,6 @@
 'use client'
 
-import { login } from '@/lib/action/auth';
+import { login } from '@/lib/action/login';
 import Image from 'next/image';
 import { useFormState } from 'react-dom';
 

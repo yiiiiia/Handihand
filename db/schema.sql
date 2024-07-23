@@ -36,7 +36,7 @@ CREATE TABLE public.account (
     email text NOT NULL,
     password text NOT NULL,
     state text NOT NULL,
-    created_at timestamp with time zone NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -61,6 +61,41 @@ ALTER SEQUENCE public.account_id_seq OWNED BY public.account.id;
 
 
 --
+-- Name: profile; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.profile (
+    id integer NOT NULL,
+    account_id integer NOT NULL,
+    first_name text,
+    last_name text,
+    country_code character varying(2),
+    address text,
+    avatar text
+);
+
+
+--
+-- Name: profile_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.profile_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: profile_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.profile_id_seq OWNED BY public.profile.id;
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -75,10 +110,12 @@ CREATE TABLE public.schema_migrations (
 
 CREATE TABLE public.session (
     id integer NOT NULL,
-    user_id integer NOT NULL,
+    account_id integer NOT NULL,
     expire_at timestamp with time zone NOT NULL,
     token text NOT NULL,
-    csrf text NOT NULL
+    csrf text,
+    csrf_created_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -103,6 +140,38 @@ ALTER SEQUENCE public.session_id_seq OWNED BY public.session.id;
 
 
 --
+-- Name: verification; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.verification (
+    id integer NOT NULL,
+    email text NOT NULL,
+    token text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: verification_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.verification_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: verification_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.verification_id_seq OWNED BY public.verification.id;
+
+
+--
 -- Name: account id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -110,10 +179,24 @@ ALTER TABLE ONLY public.account ALTER COLUMN id SET DEFAULT nextval('public.acco
 
 
 --
+-- Name: profile id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.profile ALTER COLUMN id SET DEFAULT nextval('public.profile_id_seq'::regclass);
+
+
+--
 -- Name: session id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.session ALTER COLUMN id SET DEFAULT nextval('public.session_id_seq'::regclass);
+
+
+--
+-- Name: verification id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.verification ALTER COLUMN id SET DEFAULT nextval('public.verification_id_seq'::regclass);
 
 
 --
@@ -133,6 +216,14 @@ ALTER TABLE ONLY public.account
 
 
 --
+-- Name: profile profile_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.profile
+    ADD CONSTRAINT profile_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -149,11 +240,41 @@ ALTER TABLE ONLY public.session
 
 
 --
--- Name: session session_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: verification verification_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.verification
+    ADD CONSTRAINT verification_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: idx_verification_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_verification_email ON public.verification USING btree (email);
+
+
+--
+-- Name: idx_verification_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_verification_token ON public.verification USING btree (token);
+
+
+--
+-- Name: profile profile_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.profile
+    ADD CONSTRAINT profile_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id);
+
+
+--
+-- Name: session session_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.session
-    ADD CONSTRAINT session_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.account(id);
+    ADD CONSTRAINT session_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id);
 
 
 --

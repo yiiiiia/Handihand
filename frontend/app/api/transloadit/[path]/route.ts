@@ -1,8 +1,22 @@
-import { pathGetAssemblyOptions } from '@/lib/uppy'
+import { GET_ASSEMBLY_OPTIONS } from '@/lib/uppy'
 import { StatusCodes } from 'http-status-codes'
 import crypto from 'node:crypto'
 
 export { handler as GET, handler as POST }
+
+async function handler(req: Request, { params }: { params: { path: string } }) {
+    const session = await null
+    if (!session) {
+        return new Response('unauthorized access', { status: StatusCodes.UNAUTHORIZED })
+    }
+    if (req.method === 'GET') {
+        switch (params.path) {
+            case GET_ASSEMBLY_OPTIONS: {
+                return handleGetTransloaditParam(req)
+            }
+        }
+    }
+}
 
 function utcDateString(ms: number) {
     const session = null
@@ -14,20 +28,6 @@ function utcDateString(ms: number) {
         .replace(/-/g, '/')
         .replace(/T/, ' ')
         .replace(/\.\d+Z$/, '+00:00')
-}
-
-async function handler(req: Request, { params }: { params: { path: string } }) {
-    const session = await null
-    if (!session) {
-        return new Response('unauthorized access', { status: StatusCodes.UNAUTHORIZED })
-    }
-    if (req.method === 'GET') {
-        switch (params.path) {
-            case pathGetAssemblyOptions: {
-                return handleGetTransloaditParam(req)
-            }
-        }
-    }
 }
 
 function handleGetTransloaditParam(req: Request) {

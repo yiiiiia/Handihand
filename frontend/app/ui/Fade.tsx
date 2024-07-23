@@ -1,0 +1,30 @@
+import { useRef } from 'react';
+import { Transition } from 'react-transition-group';
+
+
+export default function Fade({ duration, inProp, children }: { duration: number, inProp: boolean, children: React.ReactNode }) {
+    const defaultStyle = {
+        transition: `opacity ${duration}ms ease-in-out`,
+        opacity: 0,
+    }
+    const transitionStyles = {
+        entering: { opacity: 1 },
+        entered: { opacity: 1 },
+        exiting: { opacity: 0 },
+        exited: { opacity: 0 },
+        unmounted: { opacity: 0 },
+    };
+    const nodeRef = useRef(null)
+    return (
+        <Transition nodeRef={nodeRef} in={inProp} timeout={duration}>
+            {state => (
+                <div ref={nodeRef} style={{
+                    ...defaultStyle,
+                    ...transitionStyles[state]
+                }}>
+                    {children}
+                </div>
+            )}
+        </Transition>
+    )
+}
