@@ -1143,7 +1143,7 @@ const config: Config = {
         fadeoutup: 'fade-out-up 1s ease-in-out 0.25s 1',
         slideindown: 'slide-in-down 1s ease-in-out 0.25s 1',
         slideinleft: 'slide-in-left 1s ease-in-out 0.25s 1',
-        slideinright: 'slide-in-right 1s ease-in-out 0.25s 1',
+        slideinright: 'slide-in-right 0.5s ease-in-out 0.25s',
         slideinup: 'slide-in-up 1s ease-in-out 0.25s 1',
         slideoutdown: 'slide-out-down 1s ease-in-out 0.25s 1',
         slideoutleft: 'slide-out-left 1s ease-in-out 0.25s 1',

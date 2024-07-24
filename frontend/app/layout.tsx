@@ -20,7 +20,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <SessionProvider session={session}>
         <html lang="en">
           <body className={inter.className}>
-            <main className="relative">{children}</main>
+            <main>{children}</main>
           </body>
         </html>
       </SessionProvider>

@@ -38,7 +38,7 @@ export async function sendVerificationEmail(from: string, to: string, confirmURL
     }
     transporter.sendMail(mailOptions, (err, info) => {
         if (err) {
-            logger.error('ERROR - Sending Email: receive error from server: ', err)
+            logger.error('ERROR: sending email: receive error from server: ', err)
         }
         logger.info('get email sending info: ', info)
     })

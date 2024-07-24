@@ -1,12 +1,13 @@
-import { ACCOUNT_STATE_VERIFIED, ACCOUNT_STATE_WAIT_VERIFICATION, getPrismaClient } from "@/lib/data-source"
+import { ACCOUNT_STATE_VERIFIED, ACCOUNT_STATE_WAIT_VERIFICATION, CSRF_ONETIME_TOKEN, getPrismaClient } from "@/lib/data-source"
 import { createNewSession } from "@/lib/session"
-import { redirect } from "next/navigation"
+import { genCsrfToken } from "@/lib/util"
+import { notFound, redirect } from "next/navigation"
 
 export { handler as GET, handler as POST }
 
 async function handler(req: Request, { params }: { params: { action: string[] } }) {
     if (params.action.length == 1 && params.action[0] === 'callback') {
-        handleEmailCallback(req)
+        return handleEmailCallback(req)
     }
 }
 
@@ -15,8 +16,7 @@ async function handleEmailCallback(req: Request) {
     const email = searchParams.get('email')
     const token = searchParams.get('token')
     if (!email || !token) {
-        // both 'email' and 'token' are expected
-        redirect('/error')
+        notFound()
     }
 
     const prisma = getPrismaClient()
@@ -30,14 +30,18 @@ async function handleEmailCallback(req: Request) {
         }
     })
     if (!verifyToken) {
-        redirect('/error')
+        notFound()
     }
 
     const now = new Date()
     let diff = Math.abs(now.getTime() - verifyToken.created_at.getTime())
     if (diff > 5 * 60 * 1000) {
-        // token has expired
-        redirect(`/auth/verify?email=${email}&expired=true`)
+        // verification token has expired
+        // create a new csrf token
+        const csrf = genCsrfToken()
+        await prisma.csrf.create({ data: { token: csrf.self, session_id: null, type: CSRF_ONETIME_TOKEN } })
+        // redirect to the email verification page
+        redirect(`/auth/verify?email=${email}&expired=true&csrf=${csrf.encoded}`)
     }
 
     // token is matched within time frame

@@ -61,6 +61,39 @@ ALTER SEQUENCE public.account_id_seq OWNED BY public.account.id;
 
 
 --
+-- Name: csrf; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.csrf (
+    id integer NOT NULL,
+    token text NOT NULL,
+    session_id integer,
+    type integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: csrf_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.csrf_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: csrf_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.csrf_id_seq OWNED BY public.csrf.id;
+
+
+--
 -- Name: profile; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -71,7 +104,9 @@ CREATE TABLE public.profile (
     last_name text,
     country_code character varying(2),
     address text,
-    avatar text
+    avatar text,
+    updated_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -110,11 +145,9 @@ CREATE TABLE public.schema_migrations (
 
 CREATE TABLE public.session (
     id integer NOT NULL,
+    token text NOT NULL,
     account_id integer NOT NULL,
     expire_at timestamp with time zone NOT NULL,
-    token text NOT NULL,
-    csrf text,
-    csrf_created_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -179,6 +212,13 @@ ALTER TABLE ONLY public.account ALTER COLUMN id SET DEFAULT nextval('public.acco
 
 
 --
+-- Name: csrf id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.csrf ALTER COLUMN id SET DEFAULT nextval('public.csrf_id_seq'::regclass);
+
+
+--
 -- Name: profile id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -213,6 +253,14 @@ ALTER TABLE ONLY public.account
 
 ALTER TABLE ONLY public.account
     ADD CONSTRAINT account_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: csrf csrf_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.csrf
+    ADD CONSTRAINT csrf_pkey PRIMARY KEY (id);
 
 
 --
@@ -262,11 +310,19 @@ CREATE INDEX idx_verification_token ON public.verification USING btree (token);
 
 
 --
+-- Name: csrf csrf_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.csrf
+    ADD CONSTRAINT csrf_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.session(id) ON DELETE CASCADE;
+
+
+--
 -- Name: profile profile_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.profile
-    ADD CONSTRAINT profile_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id);
+    ADD CONSTRAINT profile_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id) ON DELETE CASCADE;
 
 
 --
@@ -274,7 +330,7 @@ ALTER TABLE ONLY public.profile
 --
 
 ALTER TABLE ONLY public.session
-    ADD CONSTRAINT session_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id);
+    ADD CONSTRAINT session_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id) ON DELETE CASCADE;
 
 
 --

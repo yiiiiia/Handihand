@@ -1,4 +1,4 @@
-export function genRandomToken(length: number) {
+function genRandomToken(length: number) {
     let result = '';
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]';
     const charactersLength = characters.length;
@@ -6,4 +6,33 @@ export function genRandomToken(length: number) {
         result += characters.charAt(Math.floor(Math.random() * charactersLength));
     }
     return result;
+}
+
+export type Token = {
+    self: string,
+    encoded: string
+}
+
+export function genCsrfToken(): Token {
+    const rand = genRandomToken(16)
+    return {
+        self: rand,
+        encoded: encodeURIComponent(rand),
+    }
+}
+
+export function genVerificationToken(): Token {
+    const rand = genRandomToken(32)
+    return {
+        self: rand,
+        encoded: encodeURIComponent(rand),
+    }
+}
+
+export function genSessionToken(): Token {
+    const rand = genRandomToken(32)
+    return {
+        self: rand,
+        encoded: encodeURIComponent(rand),
+    }
 }

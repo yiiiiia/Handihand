@@ -72,7 +72,6 @@ export default function SignUp() {
                                         </div>
                                         {showErr('policyAgree')}
                                         <SubmitButton classes="py-4 w-full mt-7 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full transition duration-200" text="Get started" />
-                                        {/* <button className="py-4 w-full mt-7 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full transition duration-200" type="submit">Get started</button> */}
                                     </form>
                                 </div>
                             </div>
