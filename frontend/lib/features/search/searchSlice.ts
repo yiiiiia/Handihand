@@ -1,4 +1,4 @@
-import { createAppSlice } from "@/lib/createAppSlice";
+import { createAppSlice } from "@/lib/util";
 
 export interface SearchSliceState {
     searchBy: "video" | "product";

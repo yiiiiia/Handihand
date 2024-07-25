@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/session";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "reflect-metadata";
 import "./globals.css";
 import SessionProvider from "./SessionProvider";
 import { StoreProvider } from "./StoreProvider";

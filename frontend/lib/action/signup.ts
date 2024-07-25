@@ -3,12 +3,10 @@
 import { StatusCodes } from 'http-status-codes'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
-import { ACCOUNT_STATE_WAIT_VERIFICATION, CSRF_ONETIME_TOKEN, getPrismaClient } from '../data-source'
+import { ACCOUNT_STATE_WAIT_VERIFICATION, TOKEN_ONETIME_CSRF, getPrismaClient, TOKEN_VERIFY_EMAIL } from '../data-source'
 import { logger } from '../logger'
 import { sendVerificationEmail } from '../mail'
-import { genCsrfToken, genVerificationToken, Token } from '../util'
-
-const emailRegex = /(?:[a-z0-9+!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/i
+import { emailRegex, randToken } from '../util'
 
 const prisma = getPrismaClient()
 
@@ -52,9 +50,9 @@ export async function signup(_preState: any, formData: FormData): Promise<SignUp
 
     const email = parsedForm.data.email
     const password = parsedForm.data.password
-    let csrfToken: Token = { self: '', encoded: '' }
+    let tkCsrf = ''
     try {
-        const result = await prisma.$transaction(async tx => {
+        await prisma.$transaction(async tx => {
             // check if acount already exists
             const account = await tx.account.findFirst({ where: { email: email } })
             if (account) {
@@ -66,35 +64,35 @@ export async function signup(_preState: any, formData: FormData): Promise<SignUp
                     }
                 }
             }
-            // create an account
+            const tkEmailVerify = randToken()
+            tkCsrf = randToken()
+            // create account in state 'wait_verification'
             await tx.$queryRaw`insert into account (email, password, state) values (${email}, crypt(${password}, gen_salt('bf')), ${ACCOUNT_STATE_WAIT_VERIFICATION}) returning id`
-            // create the verification token
-            const verifyToken = genVerificationToken()
             await tx.verification.create({
                 data: {
                     email: email,
-                    token: verifyToken.self,
+                    code: tkEmailVerify,
+                    kind: TOKEN_VERIFY_EMAIL,
                 }
             })
             // create one-time csrf token used to resend email
-            csrfToken = genCsrfToken()
-            await tx.csrf.create({ data: { token: csrfToken.self, session_id: null, type: CSRF_ONETIME_TOKEN } })
+            await tx.verification.create({
+                data: {
+                    code: tkCsrf,
+                    kind: TOKEN_ONETIME_CSRF
+                }
+            })
             // send verification email
-            await sendVerificationEmail('support@handihand.com', email,
-                `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${verifyToken.encoded}`)
-            return { success: true }
+            await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${tkEmailVerify}`)
         })
-        if (!result.success) {
-            return result
-        }
     } catch (e) {
-        logger.error('ERROR: signup failed: ', e)
+        logger.error('failed to process sign up by email: ', e)
         return {
             success: false,
             error: { internalError: true }
         }
     }
-    redirect(`/auth/verify?email=${email}&csrf=${csrfToken?.encoded}`)
+    redirect(`/auth/verify?email=${email}&csrf=${tkCsrf}`)
 }
 
 type ResendEmailResp = {
@@ -113,9 +111,12 @@ export async function resendEmail(email: string, csrf: string): Promise<ResendEm
         }
     }
     try {
-        // verify csrf token
-        const csrfObj = await prisma.csrf.findFirst({ where: { token: csrf, type: CSRF_ONETIME_TOKEN }, orderBy: { created_at: 'desc' } })
-        if (!csrfObj) {
+        // verify the one-time csrf token used to send email
+        const token = await prisma.verification.findFirst({
+            where: { code: csrf, kind: TOKEN_ONETIME_CSRF },
+            orderBy: { created_at: 'desc' }
+        })
+        if (!token) {
             return {
                 success: false,
                 errCode: StatusCodes.BAD_REQUEST,
@@ -123,27 +124,33 @@ export async function resendEmail(email: string, csrf: string): Promise<ResendEm
         }
         const newCsrf = await prisma.$transaction(async tx => {
             // delete the old csrf token
-            await tx.csrf.delete({ where: { id: csrfObj.id } })
+            await tx.verification.delete({ where: { id: token.id } })
             // create a new csrf token
-            const newCsrf = genCsrfToken()
-            await tx.csrf.create({ data: { token: newCsrf.self, type: CSRF_ONETIME_TOKEN } })
+            const tkCsrf = randToken()
+            await tx.verification.create({
+                data: {
+                    code: tkCsrf,
+                    kind: TOKEN_ONETIME_CSRF
+                }
+            })
             // create a new email verification token
-            const verifyToken = genVerificationToken()
+            const tkEmailVerify = randToken()
             await tx.verification.create({
                 data: {
                     email: email,
-                    token: verifyToken.self
+                    code: tkEmailVerify,
+                    kind: TOKEN_VERIFY_EMAIL,
                 }
             })
-            await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${verifyToken.encoded}`)
-            return newCsrf
+            await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${tkEmailVerify}`)
+            return tkCsrf
         })
         return {
             success: true,
-            csrf: newCsrf.self
+            csrf: newCsrf
         }
     } catch (err) {
-        logger.error(`FAIL: handling resending emali: ${err}`)
+        logger.error(`failed to process resend email request: ${err}`)
         return {
             success: false,
             errCode: StatusCodes.INTERNAL_SERVER_ERROR

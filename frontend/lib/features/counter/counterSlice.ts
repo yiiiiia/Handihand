@@ -1,4 +1,4 @@
-import { createAppSlice } from "@/lib/createAppSlice";
+import { createAppSlice } from "@/lib/util";
 import type { AppThunk } from "@/lib/store";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { fetchCount } from "./counterAPI";
@@ -80,10 +80,10 @@ export const { selectCount, selectStatus } = counterSlice.selectors;
 // Here's an example of conditionally dispatching actions based on current state.
 export const incrementIfOdd =
   (amount: number): AppThunk =>
-  (dispatch, getState) => {
-    const currentValue = selectCount(getState());
+    (dispatch, getState) => {
+      const currentValue = selectCount(getState());
 
-    if (currentValue % 2 === 1 || currentValue % 2 === -1) {
-      dispatch(incrementByAmount(amount));
-    }
-  };
+      if (currentValue % 2 === 1 || currentValue % 2 === -1) {
+        dispatch(incrementByAmount(amount));
+      }
+    };

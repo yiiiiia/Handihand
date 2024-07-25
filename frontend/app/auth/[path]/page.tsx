@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Login from "./login";
+import Signin from "./signin";
 import SignUp from "./signup";
 import VerifyEmail from "./verify";
 
@@ -7,13 +7,13 @@ export default function Page({
     params,
     searchParams,
 }: {
-    params: { action: string },
+    params: { path: string },
     searchParams: { [key: string]: string | string[] | undefined }
 }) {
-    switch (params.action) {
-        case "login":
-            return <Login />
-        case "register":
+    switch (params.path) {
+        case "signin":
+            return <Signin />
+        case "signup":
             return <SignUp />
         case "verify":
             return <VerifyEmail searchParams={searchParams} />

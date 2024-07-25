@@ -1,6 +1,6 @@
 'use client'
 
-import { hideUploader, selectShowUploader } from '@/lib/features/uploader/uploader';
+import { hideUploader, selectShowUploader } from '@/lib/features/uploader/uploaderSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import { createUppy } from '@/lib/uppy';
 import '@uppy/core/dist/style.min.css';

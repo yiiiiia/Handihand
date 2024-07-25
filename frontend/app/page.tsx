@@ -1,7 +1,9 @@
+'use server'
+
 import Nav from "./ui/Nav";
 import Uploader from "./ui/Uploader";
 
-export default function Home() {
+export default async function Home() {
   return (
     <>
       <Nav />

@@ -54,8 +54,8 @@ export default function VerifyEmail({ searchParams }: { searchParams: { [key: st
     const csrfRef = useRef(searchParams.csrf)
     const router = useRouter()
     const spanResendHandler = useCallback(() => {
-        resendSpanHandler(email, appState, csrfRef, setAppState)
-    }, [email, appState, csrfRef])
+        resendSpanHandler(email, csrfRef, setAppState)
+    }, [email, csrfRef])
     const buttonResendHandler = useCallback(() => {
         resendButtonHandler(email, csrfRef.current, setAppState, router)
     }, [email, csrfRef, router])
@@ -162,7 +162,7 @@ const ResendBtn = memo(function ResendBtn({ countDown, handler }: { countDown: n
     }
 })
 
-const resendSpanHandler = async (email: string, appState: AppState, csrfRef: MutableRefObject<string>, fn: Dispatch<SetStateAction<AppState>>) => {
+const resendSpanHandler = async (email: string, csrfRef: MutableRefObject<string>, fn: Dispatch<SetStateAction<AppState>>): Promise<void> => {
     const resp = await resendEmail(email, csrfRef.current)
     if (resp.success) {
         csrfRef.current = resp?.csrf ? resp.csrf : ''
@@ -185,10 +185,10 @@ const resendButtonHandler = async (email: string, csrf: string, fn: Dispatch<Set
     const resp = await resendEmail(email, csrf)
     if (resp.success) {
         csrf = resp?.csrf ? resp.csrf : ''
-        const uri = `/api/auth/callback?email=${email}&token=${encodeURIComponent(csrf)}`
+        const uri = `/auth/verify?email=${email}&csrf=${encodeURIComponent(csrf)}`
         router.push(uri)
     } else if (resp.errCode === StatusCodes.BAD_REQUEST) {
-        notFound()
+        router.push('/error')
     } else {
         const key = globalNoticeKey++
         const meta: NoticeMeta = {

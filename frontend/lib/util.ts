@@ -1,38 +1,14 @@
-function genRandomToken(length: number) {
-    let result = '';
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+[]';
-    const charactersLength = characters.length;
-    for (let i = 0; i < length; i++) {
-        result += characters.charAt(Math.floor(Math.random() * charactersLength));
-    }
-    return result;
-}
+import { asyncThunkCreator, buildCreateSlice } from "@reduxjs/toolkit";
+import crypto from 'crypto'
+import { google } from 'googleapis'
 
-export type Token = {
-    self: string,
-    encoded: string
-}
+export const emailRegex = /(?:[a-z0-9+!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/i
 
-export function genCsrfToken(): Token {
-    const rand = genRandomToken(16)
-    return {
-        self: rand,
-        encoded: encodeURIComponent(rand),
-    }
-}
+// `buildCreateSlice` allows us to create a slice with async thunks.
+export const createAppSlice = buildCreateSlice({
+    creators: { asyncThunk: asyncThunkCreator },
+});
 
-export function genVerificationToken(): Token {
-    const rand = genRandomToken(32)
-    return {
-        self: rand,
-        encoded: encodeURIComponent(rand),
-    }
-}
-
-export function genSessionToken(): Token {
-    const rand = genRandomToken(32)
-    return {
-        self: rand,
-        encoded: encodeURIComponent(rand),
-    }
+export function randToken() {
+    return crypto.randomBytes(32).toString('hex')
 }

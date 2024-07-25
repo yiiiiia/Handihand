@@ -71,7 +71,7 @@ export default function SignUp() {
                                             <p className="-mt-2 text-sm text-gray-100">By singning up, you agree to our <a className="text-white" href="#">Terms, Data Policy</a>and <a className="text-white" href="#">Cookies.</a></p>
                                         </div>
                                         {showErr('policyAgree')}
-                                        <SubmitButton classes="py-4 w-full mt-7 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full transition duration-200" text="Get started" />
+                                        <SubmitButton theme="py-4 w-full mt-7 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full transition duration-200" text="Get started" />
                                     </form>
                                 </div>
                             </div>

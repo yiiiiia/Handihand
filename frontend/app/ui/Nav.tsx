@@ -1,7 +1,7 @@
 'use client'
 
 import { selectSearchBy, toogleSearchBy } from '@/lib/features/search/searchSlice';
-import { displayUploader } from '@/lib/features/uploader/uploader';
+import { displayUploader } from '@/lib/features/uploader/uploaderSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
@@ -14,8 +14,8 @@ import { FaUserCircle } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { MdVideoLibrary } from 'react-icons/md';
 import { RiSearch2Line } from 'react-icons/ri';
-import Modal from './Modal';
 import { SessionContext } from '../SessionProvider';
+import Modal from './Modal';
 
 function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
     const [bgColor, setBgColor] = useState(normalColor)
@@ -58,19 +58,14 @@ function CategoryBtn() {
 
 function UpperRightCorner() {
     const session = useContext(SessionContext)
-    const Avatar = () => {
-        if (!session?.avatar) {
-            return (<span className="px-2"><FaUserCircle size={30} /></span>)
-        } else {
-            return (<span className="px-2"><Image src={session.avatar ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" /></span>)
-        }
-    }
     const ref = useRef(null);
     return (
         <div ref={ref} className="relative inline-block text-left">
             <button className="flex flex-row border-2 px-3 py-1 rounded-full items-center hover:shadow-md">
                 <GiHamburgerMenu size={30} />
-                <Avatar />
+                <span className="px-1">
+                    {session ? <Image src={session?.avatar ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" /> : <FaUserCircle size={30} />}
+                </span>
             </button>
             <ListItems nodeRef={ref} />
         </div>
@@ -97,20 +92,20 @@ function ListItems({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
         if (!session) {
             return (
                 <div className="py-2">
-                    <a href="/api/auth/signin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Sign up / Log in</a>
+                    <a href="/auth/signin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Sign up / Log in</a>
                 </div>
             )
         } else {
             return (
                 <div className="py-2">
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account</a>
+                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">My Account</a>
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
+                    <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
                 </div>
             )
         }
     }
-    let className = (showDropList ? 'visible ' : 'invisible ') + "absolute right-0 z-10 mt-1 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none"
+    let className = (showDropList ? 'visible ' : 'invisible ') + "absolute right-0 z-10 mt-1 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none mt-2"
     return (
         <div className={className} tabIndex={-1}>
             {items()}
