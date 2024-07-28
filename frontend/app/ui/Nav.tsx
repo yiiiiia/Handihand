@@ -16,6 +16,8 @@ import { MdVideoLibrary } from 'react-icons/md';
 import { RiSearch2Line } from 'react-icons/ri';
 import { SessionContext } from '../SessionProvider';
 import Modal from './Modal';
+import Uploader from './Uploader';
+import Spinner from './Spinner';
 
 function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
     const [bgColor, setBgColor] = useState(normalColor)
@@ -49,7 +51,7 @@ function CategoryBtn() {
     }
     const dispatch = useAppDispatch()
     return (
-        <div className="justify-self-center flex flex-row text-lg">
+        <div className="justify-self-center flex flex-row text-lg items-center">
             <button className={calClassName('video')} onClick={() => dispatch(toogleSearchBy())}>Videos</button>
             <button className={calClassName('product')} onClick={() => dispatch(toogleSearchBy())}>Products</button>
         </div>
@@ -60,11 +62,11 @@ function UpperRightCorner() {
     const session = useContext(SessionContext)
     const ref = useRef(null);
     return (
-        <div ref={ref} className="relative inline-block text-left">
-            <button className="flex flex-row border-2 px-3 py-1 rounded-full items-center hover:shadow-md">
-                <GiHamburgerMenu size={30} />
-                <span className="px-1">
-                    {session ? <Image src={session?.avatar ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" /> : <FaUserCircle size={30} />}
+        <div ref={ref} className="relative inline-block text-left ml-5">
+            <button className="flex flex-row border-2 px-2 py-2 rounded-full items-center hover:shadow-md">
+                <GiHamburgerMenu size={25} />
+                <span className="px-2">
+                    {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" /> : <FaUserCircle size={30} />}
                 </span>
             </button>
             <ListItems nodeRef={ref} />
@@ -113,24 +115,28 @@ function ListItems({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
     )
 }
 
-function loginNotice(show: boolean, setVisibility: (a: boolean) => void) {
+function LoginNotice({ show, setVisibility }: { show: boolean, setVisibility: (a: boolean) => void }) {
+    const [showSpinner, setShowSpinner] = useState(false)
     const cancel = () => {
         setVisibility(false)
     }
     if (show) {
         return (
-            <Modal>
-                <div className="mb-8">
-                    <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
-                    <p className="text-gray-600">Log in to enjoy most of the app</p>
-                </div>
-                <div className="space-y-4">
-                    <Link href="/api/auth/signin">
-                        <button className="p-3 bg-black rounded-full text-white w-full font-semibold">Log in</button>
-                    </Link>
-                    <button className="p-3 bg-white border rounded-full w-full font-semibold" onClick={cancel}>Skip for now</button>
-                </div>
-            </Modal>
+            <>
+                <Modal>
+                    <div className="mb-8">
+                        <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
+                        <p className="text-gray-600">Log in to unlock most functionalities of the app</p>
+                    </div>
+                    <div className="space-y-4">
+                        <Link href="/auth/signin">
+                            <button className="p-3 bg-black rounded-full text-white w-full font-semibold" onClick={() => { setShowSpinner(true) }}>Log in</button>
+                        </Link>
+                        <button className="p-3 bg-white border rounded-full w-full font-semibold" onClick={cancel}>Skip for now</button>
+                    </div>
+                </Modal>
+                {showSpinner && <Spinner />}
+            </>
         )
     }
 }
@@ -139,7 +145,7 @@ export default function Nav() {
     const session = useContext(SessionContext)
     const [showLoginNotice, setShowLoginNotice] = useState(false)
     const dispatch = useAppDispatch()
-    const openUploaderIfSignedIn = () => {
+    const openUploader = () => {
         if (!session) {
             setShowLoginNotice(true)
             return
@@ -151,17 +157,17 @@ export default function Nav() {
             <nav className="flex flex-col px-12 py-5">
                 <div className="grid grid-cols-3">
                     <div className="">
-                        <Image src="/airbnb-color.svg" width={30} height={30} alt="Logo" />
+                        <Image src="/logo.svg" width={30} height={30} alt="Logo" />
                     </div>
                     <CategoryBtn />
-                    <div className="justify-self-end flex flex-row gap-x-1">
-                        <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500 select-file-button" onClick={openUploaderIfSignedIn}>
-                            <MdVideoLibrary size={18} />
-                            <span className="text-sm text-white">Upload</span>
+                    <div className="justify-self-end flex flex-row">
+                        <button className="flex flex-row items-center px-4 mx-2 my-2 rounded-lg bg-red-500" onClick={openUploader}>
+                            <MdVideoLibrary size={24} />
+                            <span className="text-sm text-white pl-2">Upload</span>
                         </button>
-                        <button className="flex flex-row gap-x-1 items-center px-4 rounded-lg bg-red-500">
-                            <BsCartPlusFill size={18} />
-                            <span className="text-sm text-white">Cart</span>
+                        <button className="flex flex-row items-center px-4 mx-2 my-2 rounded-lg bg-red-500">
+                            <BsCartPlusFill size={24} />
+                            <span className="text-sm text-white pl-2">Cart</span>
                         </button>
                         <UpperRightCorner />
                     </div>
@@ -171,7 +177,8 @@ export default function Nav() {
                     <BgColorInput normalColor={'bg-white'} hoverColor={'bg-gray-200'} labelName={'What'} hint='Search keyword' icon={<RiSearch2Line size={40} className='rounded-full text-white bg-red-500 px-2 py-2 hover:cursor-pointer' />} />
                 </div>
             </nav>
-            {loginNotice(showLoginNotice, setShowLoginNotice)}
+            <LoginNotice show={showLoginNotice} setVisibility={setShowLoginNotice} />
+            <Uploader />
         </>
     )
 }

@@ -1,34 +1,23 @@
 'use server'
 
+import { googleOAuthClient } from "@/app/api/auth/[...action]/oauth"
 import { account } from "@prisma/client"
-import { google } from 'googleapis'
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { getPrismaClient } from "../data-source"
+import { prismaClient } from "../db/data-source"
 import { newSession } from "../session"
 import { randToken } from "../util"
-import { googleOAuthClient } from "@/app/api/auth/[...action]/oauth"
-
-const prisma = getPrismaClient()
 
 export async function signin(_preState: any, formData: FormData): Promise<string> {
-    let email = formData.get('email')
+    let email = (<string>formData.get('email')).trim()
     if (!email) {
         return 'Email is required'
     }
-    email = email.toString().trim()
-    if (!email) {
-        return 'Email is required'
-    }
-    let password = formData.get('password')
+    let password = (<string>formData.get('password')).trim()
     if (!password) {
         return 'Password is required'
     }
-    password = password.toString().trim()
-    if (!password) {
-        return 'Password is required'
-    }
-    const accounts: account[] = await prisma.$queryRaw`select * from account where email = ${email}::text and crypt(${password}, password) = password;`
+    const accounts: account[] = await prismaClient.$queryRaw`select * from account where identity_type ='email' and identity_value = ${email} and crypt(${password}, password) = password;`
     if (accounts.length == 0) {
         return "Account does not exist or password does not match"
     }

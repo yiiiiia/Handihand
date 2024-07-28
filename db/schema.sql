@@ -33,10 +33,12 @@ SET default_table_access_method = heap;
 
 CREATE TABLE public.account (
     id integer NOT NULL,
-    email text NOT NULL,
-    password text NOT NULL,
+    identity_value text NOT NULL,
+    identity_type text NOT NULL,
+    password text,
     state text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    deleted_at timestamp with time zone
 );
 
 
@@ -58,6 +60,41 @@ CREATE SEQUENCE public.account_id_seq
 --
 
 ALTER SEQUENCE public.account_id_seq OWNED BY public.account.id;
+
+
+--
+-- Name: address; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.address (
+    id integer NOT NULL,
+    country_code character varying(2) NOT NULL,
+    region text,
+    city text,
+    postcode text,
+    street_address text,
+    extended_address text
+);
+
+
+--
+-- Name: address_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.address_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: address_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.address_id_seq OWNED BY public.address.id;
 
 
 --
@@ -103,9 +140,9 @@ CREATE TABLE public.profile (
     id integer NOT NULL,
     first_name text,
     last_name text,
-    country_code character varying(2),
-    address text,
-    avatar text,
+    middle_name text,
+    photo text,
+    address_id integer,
     account_id integer NOT NULL,
     updated_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
@@ -175,6 +212,37 @@ ALTER SEQUENCE public.session_id_seq OWNED BY public.session.id;
 
 
 --
+-- Name: tag; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.tag (
+    id integer NOT NULL,
+    word text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: tag_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.tag_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: tag_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.tag_id_seq OWNED BY public.tag.id;
+
+
+--
 -- Name: verification; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -183,7 +251,7 @@ CREATE TABLE public.verification (
     email text,
     code text NOT NULL,
     session_id integer,
-    kind integer NOT NULL,
+    type text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -209,10 +277,72 @@ ALTER SEQUENCE public.verification_id_seq OWNED BY public.verification.id;
 
 
 --
+-- Name: video; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.video (
+    id integer NOT NULL,
+    account_id integer NOT NULL,
+    country_code text,
+    title text,
+    description text,
+    name text NOT NULL,
+    type text NOT NULL,
+    size integer NOT NULL,
+    upload_id text,
+    template_id text,
+    assembly_id text,
+    upload_url text,
+    ssl_url text,
+    thumbnail_url text,
+    updated_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: video_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.video_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: video_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.video_id_seq OWNED BY public.video.id;
+
+
+--
+-- Name: video_tag; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.video_tag (
+    video_id integer NOT NULL,
+    tag_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: account id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.account ALTER COLUMN id SET DEFAULT nextval('public.account_id_seq'::regclass);
+
+
+--
+-- Name: address id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.address ALTER COLUMN id SET DEFAULT nextval('public.address_id_seq'::regclass);
 
 
 --
@@ -237,6 +367,13 @@ ALTER TABLE ONLY public.session ALTER COLUMN id SET DEFAULT nextval('public.sess
 
 
 --
+-- Name: tag id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag ALTER COLUMN id SET DEFAULT nextval('public.tag_id_seq'::regclass);
+
+
+--
 -- Name: verification id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -244,11 +381,18 @@ ALTER TABLE ONLY public.verification ALTER COLUMN id SET DEFAULT nextval('public
 
 
 --
--- Name: account account_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: video id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.video ALTER COLUMN id SET DEFAULT nextval('public.video_id_seq'::regclass);
+
+
+--
+-- Name: account account_identity_value_identity_type_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.account
-    ADD CONSTRAINT account_email_key UNIQUE (email);
+    ADD CONSTRAINT account_identity_value_identity_type_key UNIQUE (identity_value, identity_type);
 
 
 --
@@ -257,6 +401,14 @@ ALTER TABLE ONLY public.account
 
 ALTER TABLE ONLY public.account
     ADD CONSTRAINT account_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: address address_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.address
+    ADD CONSTRAINT address_pkey PRIMARY KEY (id);
 
 
 --
@@ -308,6 +460,14 @@ ALTER TABLE ONLY public.session
 
 
 --
+-- Name: tag tag_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag
+    ADD CONSTRAINT tag_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: verification verification_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -321,6 +481,29 @@ ALTER TABLE ONLY public.verification
 
 ALTER TABLE ONLY public.verification
     ADD CONSTRAINT verification_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: video video_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.video
+    ADD CONSTRAINT video_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: video_tag video_tag_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.video_tag
+    ADD CONSTRAINT video_tag_pkey PRIMARY KEY (video_id, tag_id);
+
+
+--
+-- Name: idx_address_country_postcode; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_address_country_postcode ON public.address USING btree (country_code, postcode);
 
 
 --
@@ -359,6 +542,27 @@ CREATE INDEX idx_verification_session_id ON public.verification USING btree (ses
 
 
 --
+-- Name: idx_video_account_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_video_account_id ON public.video USING btree (account_id);
+
+
+--
+-- Name: idx_video_country; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_video_country ON public.video USING btree (country_code);
+
+
+--
+-- Name: idx_video_desc; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_video_desc ON public.video USING gin (to_tsvector('english'::regconfig, ((description || ' '::text) || title)));
+
+
+--
 -- Name: oauth oauth_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -372,6 +576,14 @@ ALTER TABLE ONLY public.oauth
 
 ALTER TABLE ONLY public.profile
     ADD CONSTRAINT profile_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id) ON DELETE CASCADE;
+
+
+--
+-- Name: profile profile_address_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.profile
+    ADD CONSTRAINT profile_address_id_fkey FOREIGN KEY (address_id) REFERENCES public.address(id) ON DELETE CASCADE;
 
 
 --

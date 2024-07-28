@@ -1,14 +1,12 @@
 'use server'
 
-import { StatusCodes } from 'http-status-codes'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
-import { ACCOUNT_STATE_WAIT_VERIFICATION, TOKEN_ONETIME_CSRF, getPrismaClient, TOKEN_VERIFY_EMAIL } from '../data-source'
+import { prismaClient } from '../db/data-source'
+import { createEmailVerificationToken, createAccountByEmail, createOnetimeCsrfToken, findAccountByEmail, verifyOnetimeCsrfToken } from '../db/query'
 import { logger } from '../logger'
 import { sendVerificationEmail } from '../mail'
-import { emailRegex, randToken } from '../util'
-
-const prisma = getPrismaClient()
+import { emailRegex } from '../util'
 
 type SignUpResult = {
     success: boolean,
@@ -50,11 +48,10 @@ export async function signup(_preState: any, formData: FormData): Promise<SignUp
 
     const email = parsedForm.data.email
     const password = parsedForm.data.password
-    let tkCsrf = ''
+    let csrfToken = ''
     try {
-        await prisma.$transaction(async tx => {
-            // check if acount already exists
-            const account = await tx.account.findFirst({ where: { email: email } })
+        await prismaClient.$transaction(async tx => {
+            const account = await findAccountByEmail(email, tx)
             if (account) {
                 return {
                     success: false,
@@ -64,26 +61,11 @@ export async function signup(_preState: any, formData: FormData): Promise<SignUp
                     }
                 }
             }
-            const tkEmailVerify = randToken()
-            tkCsrf = randToken()
-            // create account in state 'wait_verification'
-            await tx.$queryRaw`insert into account (email, password, state) values (${email}, crypt(${password}, gen_salt('bf')), ${ACCOUNT_STATE_WAIT_VERIFICATION}) returning id`
-            await tx.verification.create({
-                data: {
-                    email: email,
-                    code: tkEmailVerify,
-                    kind: TOKEN_VERIFY_EMAIL,
-                }
-            })
-            // create one-time csrf token used to resend email
-            await tx.verification.create({
-                data: {
-                    code: tkCsrf,
-                    kind: TOKEN_ONETIME_CSRF
-                }
-            })
-            // send verification email
-            await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${tkEmailVerify}`)
+
+            await createAccountByEmail(email, password, false, tx)
+            const emailVerificationToken = await createEmailVerificationToken(email, tx)
+            await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${emailVerificationToken}`)
+            csrfToken = await createOnetimeCsrfToken(tx)
         })
     } catch (e) {
         logger.error('failed to process sign up by email: ', e)
@@ -92,68 +74,25 @@ export async function signup(_preState: any, formData: FormData): Promise<SignUp
             error: { internalError: true }
         }
     }
-    redirect(`/auth/verify?email=${email}&csrf=${tkCsrf}`)
+    redirect(`/auth/verify?email=${email}&csrf=${csrfToken}`)
 }
 
-type ResendEmailResp = {
-    success: boolean,
-    errCode?: number,
-    errMsg?: string
-    csrf?: string,
-}
-
-export async function resendEmail(email: string, csrf: string): Promise<ResendEmailResp> {
+export async function resendEmail(email: string, csrf: string): Promise<string> {
     if (!email || !csrf) {
-        return {
-            success: false,
-            errCode: StatusCodes.BAD_REQUEST,
-            errMsg: 'missing parameters: both "email" and "csrf" are required'
-        }
+        redirect('/error')
     }
-    try {
-        // verify the one-time csrf token used to send email
-        const token = await prisma.verification.findFirst({
-            where: { code: csrf, kind: TOKEN_ONETIME_CSRF },
-            orderBy: { created_at: 'desc' }
-        })
-        if (!token) {
-            return {
-                success: false,
-                errCode: StatusCodes.BAD_REQUEST,
-            }
-        }
-        const newCsrf = await prisma.$transaction(async tx => {
-            // delete the old csrf token
-            await tx.verification.delete({ where: { id: token.id } })
-            // create a new csrf token
-            const tkCsrf = randToken()
-            await tx.verification.create({
-                data: {
-                    code: tkCsrf,
-                    kind: TOKEN_ONETIME_CSRF
-                }
-            })
-            // create a new email verification token
-            const tkEmailVerify = randToken()
-            await tx.verification.create({
-                data: {
-                    email: email,
-                    code: tkEmailVerify,
-                    kind: TOKEN_VERIFY_EMAIL,
-                }
-            })
-            await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${tkEmailVerify}`)
-            return tkCsrf
-        })
-        return {
-            success: true,
-            csrf: newCsrf
-        }
-    } catch (err) {
-        logger.error(`failed to process resend email request: ${err}`)
-        return {
-            success: false,
-            errCode: StatusCodes.INTERNAL_SERVER_ERROR
-        }
+    // verify the one-time csrf token used to send email
+    const verifyResult = await verifyOnetimeCsrfToken(csrf)
+    if (!verifyResult) {
+        redirect('error')
     }
+    await prismaClient.$transaction(async tx => {
+        // create a new csrf token
+        csrf = await createOnetimeCsrfToken(tx)
+        // create a new email verification token
+        const email_verify_token = await createEmailVerificationToken(email, tx)
+        // send email
+        await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${email_verify_token}`)
+    })
+    return csrf
 }
