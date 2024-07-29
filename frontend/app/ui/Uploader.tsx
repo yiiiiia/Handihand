@@ -95,6 +95,7 @@ export default function Uploader() {
 
         setAppState(old => ({ ...old, state: 'uploading' }))
         const result = await uppy.upload()
+        console.log('uplaod result: ', JSON.stringify(result))
         if (result && result.successful && result.successful.length > 0) {
             await recordUploadResult(result, parsedFormValue.data.title, parsedFormValue.data.description, [])
             setAppState(old => ({ ...old, state: 'finished' }))
@@ -190,9 +191,8 @@ async function recordUploadResult(result: UploadResult<any, any>, title: string,
     if (result.successful && result.successful.length > 0) {
         const success = result.successful[0]
         const record: VideoUploadRecord = {
-            assembly_id: result.transloadit?.assembly_id,
-            template_id: result.transloadit?.template_id,
             upload_id: result.uploadID ?? '',
+            assembly_id: success.transloadit?.assembly ?? '',
             name: success.name ?? '',
             type: success.type,
             size: success.size ?? 0,

@@ -290,13 +290,13 @@ CREATE TABLE public.video (
     type text NOT NULL,
     size integer NOT NULL,
     upload_id text,
-    template_id text,
     assembly_id text,
     upload_url text,
     ssl_url text,
     thumbnail_url text,
     updated_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    textsearchable_index_col tsvector GENERATED ALWAYS AS (to_tsvector('english'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(description, ''::text)))) STORED
 );
 
 
@@ -468,6 +468,14 @@ ALTER TABLE ONLY public.tag
 
 
 --
+-- Name: tag tag_word_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.tag
+    ADD CONSTRAINT tag_word_key UNIQUE (word);
+
+
+--
 -- Name: verification verification_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -556,10 +564,17 @@ CREATE INDEX idx_video_country ON public.video USING btree (country_code);
 
 
 --
--- Name: idx_video_desc; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_video_ssl_url; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_video_desc ON public.video USING gin (to_tsvector('english'::regconfig, ((description || ' '::text) || title)));
+CREATE INDEX idx_video_ssl_url ON public.video USING btree (ssl_url);
+
+
+--
+-- Name: idx_video_thumbnail_url; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_video_thumbnail_url ON public.video USING btree (thumbnail_url);
 
 
 --

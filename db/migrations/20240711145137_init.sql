@@ -81,7 +81,7 @@ create index IF NOT EXISTS idx_verification_email on verification using btree (e
 
 create table if NOT exists tag (
   id SERIAL PRIMARY key,
-  word text not null,
+  word text not null UNIQUE,
   created_at TIMESTAMPTZ not null default now()
 );
 
@@ -95,7 +95,6 @@ create table if not exists video (
   type text not null,
   size int not null,
   upload_id text,
-  template_id text,
   assembly_id text,
   upload_url text,
   -- google storage url, used to access the video
@@ -110,9 +109,11 @@ create index if not exists idx_video_account_id on video using btree (account_id
 
 create index if not exists idx_video_country on video using btree (country_code);
 
-CREATE INDEX if not exists idx_video_desc ON video USING GIN (
-  to_tsvector('english', description || ' ' || title)
-);
+create index if not exists idx_video_ssl_url on video using btree (ssl_url);
+
+create index if not exists idx_video_thumbnail_url on video using btree (thumbnail_url);
+
+alter table video add column textsearchable_index_col tsvector GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))) STORED;
 
 create table if not exists video_tag (
   video_id int not null,

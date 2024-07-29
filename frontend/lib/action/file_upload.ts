@@ -6,7 +6,6 @@ import { prismaClient } from "../db/data-source"
 
 export type VideoUploadRecord = {
     assembly_id: string,
-    template_id: string,
     upload_id: string,
     name: string,
     type: string,
@@ -40,7 +39,6 @@ export async function recordUploadedVideo(record: VideoUploadRecord) {
             type: record.type,
             size: record.size,
             upload_id: record.upload_id,
-            template_id: record.template_id,
             assembly_id: record.assembly_id,
             upload_url: record.upload_url,
         }
