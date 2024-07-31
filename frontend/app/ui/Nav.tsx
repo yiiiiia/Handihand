@@ -40,20 +40,20 @@ function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefin
 
 function CategoryBtn() {
     const searchBy = useAppSelector(selectSearchBy)
-    const calClassName = (category: string) => {
-        let cls = classNames('rounded-full', 'w-28', 'h-10', 'hover:cursor-pointer')
+    const getTheme = (category: string) => {
+        let basicTheme = classNames('rounded-full', 'w-28', 'h-10', 'hover:cursor-pointer')
         if (category === searchBy) {
-            cls = classNames(cls, 'font-semibold')
+            basicTheme = classNames(basicTheme, 'font-semibold')
         } else {
-            cls = classNames(cls, 'font-light', 'hover:bg-gray-200 hover:font-normal')
+            basicTheme = classNames(basicTheme, 'font-light', 'hover:bg-gray-200 hover:font-normal')
         }
-        return cls
+        return basicTheme
     }
     const dispatch = useAppDispatch()
     return (
         <div className="justify-self-center flex flex-row text-lg items-center">
-            <button className={calClassName('video')} onClick={() => dispatch(toogleSearchBy())}>Videos</button>
-            <button className={calClassName('product')} onClick={() => dispatch(toogleSearchBy())}>Products</button>
+            <button className={getTheme('video')} onClick={() => dispatch(toogleSearchBy())}>Videos</button>
+            <button className={getTheme('product')} onClick={() => dispatch(toogleSearchBy())}>Products</button>
         </div>
     )
 }
@@ -100,7 +100,7 @@ function ListItems({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
         } else {
             return (
                 <div className="py-2">
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">My Account</a>
+                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account Center</a>
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
                     <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
                 </div>

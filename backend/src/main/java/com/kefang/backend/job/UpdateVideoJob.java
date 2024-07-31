@@ -1,6 +1,7 @@
 package com.kefang.backend.job;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.util.Strings;
 import org.json.JSONArray;
@@ -16,14 +17,33 @@ import com.kefang.backend.transloadit.TransloaditClient;
 import com.transloadit.sdk.response.AssemblyResponse;
 
 @Component
-public class VideoUrlUpdate {
+public class UpdateVideoJob implements Runnable {
 
-    private Logger logger = LoggerFactory.getLogger(VideoUrlUpdate.class);
+    private Logger logger = LoggerFactory.getLogger(UpdateVideoJob.class);
 
     @Autowired
     private VideoRepository videoRepository;
 
-    public void updateVideoUrl() throws Exception {
+    public void run() {
+        logger.info("start video updating job");
+        while (true) {
+            try {
+                fetchAndUpdateUrl();
+            } catch (Exception e) {
+                logger.error("unexpected exception when updating video url, exit job", e);
+                break;
+            }
+            try {
+                Thread.sleep(5 * 1000);
+            } catch (InterruptedException e) {
+                logger.info("thread was interrupted, gracefully shutdown");
+                break;
+            }
+        }
+        logger.info("video updating job terminated");
+    }
+
+    public void fetchAndUpdateUrl() throws Exception {
         TransloaditClient transloadit = TransloaditClient.gTransloaditClient();
         List<Video> videos = videoRepository.findVideosWithEmptySSLUrl();
         for (Video video : videos) {

@@ -1,7 +1,7 @@
 import { account, session, verification } from "@prisma/client";
 import { randToken } from "../util";
 import { prismaClient, PrismaDBConnection } from "./data-source";
-import { Address, EMAIL_AS_IDENTITY, Profile, TOKEN_ONETIME_CSRF, TOKEN_SESSION_CSRF, TOKEN_VERIFY_EMAIL, VERIFIED, WAIT_VERIFICATION } from "./entities";
+import { Address, EMAIL_AS_IDENTITY, Profile, Tag, TOKEN_ONETIME_CSRF, TOKEN_SESSION_CSRF, TOKEN_VERIFY_EMAIL, VERIFIED, WAIT_VERIFICATION } from "./entities";
 
 export async function findAccountByEmail(email: string, prisma?: PrismaDBConnection): Promise<account | null> {
     if (!prisma) {
@@ -156,4 +156,13 @@ export async function getProfileByAccountId(account_id: number, prisma?: PrismaD
         }
     }
     return profile
+}
+
+export async function getAllTags(): Promise<Tag[]> {
+    const db_tags = await prismaClient.tag.findMany()
+    return db_tags.map(e => ({
+        id: e.id,
+        word: e.word,
+        createdAt: e.created_at
+    }))
 }

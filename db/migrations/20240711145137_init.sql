@@ -113,7 +113,7 @@ create index if not exists idx_video_ssl_url on video using btree (ssl_url);
 
 create index if not exists idx_video_thumbnail_url on video using btree (thumbnail_url);
 
-alter table video add column textsearchable_index_col tsvector GENERATED ALWAYS AS (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, ''))) STORED;
+create index if not exists idx_video_title_description on video using gin (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')));
 
 create table if not exists video_tag (
   video_id int not null,

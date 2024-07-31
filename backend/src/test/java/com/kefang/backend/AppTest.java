@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -21,7 +22,7 @@ import com.kefang.backend.db.entity.Account;
 import com.kefang.backend.db.entity.Video;
 import com.kefang.backend.db.repository.AccountRepository;
 import com.kefang.backend.db.repository.VideoRepository;
-import com.kefang.backend.job.VideoUrlUpdate;
+import com.kefang.backend.job.UpdateVideoJob;
 import com.kefang.backend.transloadit.TransloaditClient;
 import com.transloadit.sdk.exceptions.LocalOperationException;
 import com.transloadit.sdk.exceptions.RequestException;
@@ -39,7 +40,7 @@ class AppTest {
 	private VideoRepository videoRepository;
 
 	@Autowired
-	private VideoUrlUpdate videoUrlUpdate;
+	private UpdateVideoJob videoUrlUpdate;
 
 	@Test
 	void testLoadContext() {
@@ -84,7 +85,7 @@ class AppTest {
 	@Test
 	void testRunVideoUpdateOnce() {
 		try {
-			videoUrlUpdate.updateVideoUrl();
+			videoUrlUpdate.fetchAndUpdateUrl();
 		} catch (Exception e) {
 			fail("unexpected exception: ", e);
 		}
@@ -93,7 +94,8 @@ class AppTest {
 	@Test
 	void testSearchVideoByCondition() {
 		String countryCode = null;
-		List<Video> videos = videoRepository.findVideosByCondition(countryCode);
+		@SuppressWarnings("unchecked")
+		List<Video> videos = videoRepository.findVideosByCondition(countryCode, "knitting", Collections.EMPTY_LIST);
 		assertEquals(videos.size(), 1);
 	}
 }

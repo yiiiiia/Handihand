@@ -75,7 +75,7 @@ export type Verification = {
 }
 
 export type Tag = {
-    id: number | undefined;
+    id: number;
     word: string;
     createdAt?: Date;
 }

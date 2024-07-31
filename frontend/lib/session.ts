@@ -78,11 +78,7 @@ export async function extendSession(): Promise<void> {
     if (!session) {
         return
     }
-    if (Date.now() >= session.expire_at.getTime()) {
-        // session expired, delete the old
-        await prismaClient.session.delete({ where: { id: session.id } })
-        await newSession(session.account_id)
-    } else {
+    if (Date.now() < session.expire_at.getTime()) {
         // session is still valid, extend it's expire time
         const expire = new Date(Date.now() + duration)
         await prismaClient.session.update({

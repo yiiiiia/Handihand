@@ -295,8 +295,7 @@ CREATE TABLE public.video (
     ssl_url text,
     thumbnail_url text,
     updated_at timestamp with time zone,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    textsearchable_index_col tsvector GENERATED ALWAYS AS (to_tsvector('english'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(description, ''::text)))) STORED
+    created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -575,6 +574,13 @@ CREATE INDEX idx_video_ssl_url ON public.video USING btree (ssl_url);
 --
 
 CREATE INDEX idx_video_thumbnail_url ON public.video USING btree (thumbnail_url);
+
+
+--
+-- Name: idx_video_title_description; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_video_title_description ON public.video USING gin (to_tsvector('english'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(description, ''::text))));
 
 
 --
