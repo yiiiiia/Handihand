@@ -5,7 +5,7 @@ import { account } from "@prisma/client"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { prismaClient } from "../db/data-source"
-import { newSession } from "../session"
+import { deleteSession, getSession, newSession } from "../session"
 import { randToken } from "../util"
 
 export async function signin(_preState: any, formData: FormData): Promise<string> {
@@ -56,4 +56,16 @@ export async function beginGoogleOAuthSignin() {
         state: state
     });
     redirect(authorizationUrl)
+}
+
+export async function purgeInvalidSession(): Promise<boolean> {
+    const session = await getSession()
+    if (!session) {
+        const sessionid = cookies().get('sessionid')
+        if (sessionid) {
+            deleteSession()
+            return true
+        }
+    }
+    return false
 }

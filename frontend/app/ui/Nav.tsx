@@ -18,6 +18,7 @@ import { SessionContext } from '../SessionProvider';
 import Modal from './Modal';
 import Uploader from './Uploader';
 import Spinner from './Spinner';
+import { purgeInvalidSession } from '@/lib/action/signin';
 
 function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
     const [bgColor, setBgColor] = useState(normalColor)
@@ -66,7 +67,7 @@ function UpperRightCorner() {
             <button className="flex flex-row border-2 px-2 py-2 rounded-full items-center hover:shadow-md">
                 <GiHamburgerMenu size={25} />
                 <span className="px-2">
-                    {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" /> : <FaUserCircle size={30} />}
+                    {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" className='rounded-full' /> : <FaUserCircle size={30} />}
                 </span>
             </button>
             <ListItems nodeRef={ref} />
@@ -100,7 +101,7 @@ function ListItems({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
         } else {
             return (
                 <div className="py-2">
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account Center</a>
+                    <a href="/account/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account Center</a>
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
                     <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
                 </div>
@@ -142,6 +143,7 @@ function LoginNotice({ show, setVisibility }: { show: boolean, setVisibility: (a
 }
 
 export default function Nav() {
+    const [hasInvalidSession, setHasInvalidSession] = useState(false)
     const session = useContext(SessionContext)
     const [showLoginNotice, setShowLoginNotice] = useState(false)
     const dispatch = useAppDispatch()
@@ -152,12 +154,19 @@ export default function Nav() {
         }
         dispatch(displayUploader())
     }
+    useEffect(() => {
+        purgeInvalidSession().then(purged => {
+            if (purged) {
+                setHasInvalidSession(true)
+            }
+        })
+    }, [])
     return (
         <>
             <nav className="flex flex-col px-12 py-5">
                 <div className="grid grid-cols-3">
                     <div className="">
-                        <Image src="/logo.svg" width={30} height={30} alt="Logo" />
+                        <Image src="/logo.png" width={100} height={100} alt="Logo" />
                     </div>
                     <CategoryBtn />
                     <div className="justify-self-end flex flex-row">

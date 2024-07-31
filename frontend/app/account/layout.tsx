@@ -1,3 +1,6 @@
+import { useContext } from "react"
+import { SessionContext } from "../SessionProvider"
+
 export default function AccountCenterLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <div className="flex flex-row h-screen">

@@ -31,18 +31,14 @@ export async function getSession(): Promise<Nullable<Session>> {
     if (!sessionid) {
         return null;
     }
-
     const session = await findSessionBySessionId(sessionid.value)
     if (!session) {
         return null
     }
     if (Date.now() > session.expire_at.getTime()) {
-        await prismaClient.session.delete({
-            where: { id: session.id }
-        })
+        // expired session
         return null
     }
-
     const account = await findAccountById(session.account_id)
     if (!account) {
         logger.error(`SYSTEM ERROR: account with id ${session.account_id} was recorded in session ${session.id}, but not found in db`)
@@ -79,7 +75,6 @@ export async function extendSession(): Promise<void> {
         return
     }
     if (Date.now() < session.expire_at.getTime()) {
-        // session is still valid, extend it's expire time
         const expire = new Date(Date.now() + duration)
         await prismaClient.session.update({
             where: {
@@ -99,11 +94,13 @@ export async function extendSession(): Promise<void> {
     }
 }
 
-export function deleteSession(session: Session) {
-    prismaClient.session.delete({
-        where: { id: session.id }
-    }).catch(err => {
-        logger.error(`db error: failed to delte session: ${err}`)
-    })
+export function deleteSession(session?: Session) {
+    if (session) {
+        prismaClient.session.delete({
+            where: { id: session.id }
+        }).catch(err => {
+            logger.error(`db error: failed to delte session: ${err}`)
+        })
+    }
     cookies().delete('sessionid')
 }

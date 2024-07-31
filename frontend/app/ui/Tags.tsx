@@ -45,7 +45,7 @@ export default function Tags({ tags }: { tags: Tag[] }) {
 
     return (
         <div className="relative flex flex-row items-center px-6 gap-2">
-            <IoIosArrowDropleft size={35} className="hover:cursor-pointer" onClick={() => handleArrowClick('left')} />
+            {tags.length > 0 && <IoIosArrowDropleft size={35} className="hover:cursor-pointer" onClick={() => handleArrowClick('left')} />}
             <div ref={parentRef} className="flex flex-row overflow-hidden w-full z-0 gap-4">
                 {
                     <>
@@ -55,7 +55,7 @@ export default function Tags({ tags }: { tags: Tag[] }) {
                     </>
                 }
             </div>
-            <IoIosArrowDropright size={35} className="hover:cursor-pointer" onClick={() => handleArrowClick('right')} />
+            {tags.length > 0 && <IoIosArrowDropright size={35} className="hover:cursor-pointer" onClick={() => handleArrowClick('right')} />}
         </div>
     )
 }

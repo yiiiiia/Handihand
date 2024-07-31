@@ -12,33 +12,28 @@ CREATE TABLE if NOT EXISTS account (
   UNIQUE(identity_value, identity_type)
 );
 
-create table if not exists address (
+create TABLE if not exists profile (
   id SERIAL PRIMARY key,
-  country_code varchar(2) not null,
+  account_id int not null,
+  country_code varchar(2),
   region text,
   city text,
   postcode text,
   street_address text,
-  extended_address text
-);
-
-create index IF NOT EXISTS idx_address_country_postcode on address using btree (country_code, postcode);
-
-create TABLE if not exists profile (
-  id SERIAL PRIMARY key,
+  extended_address text,
   first_name text,
   last_name text,
   middle_name text,
   photo text,
-  address_id int,
-  account_id int not null,
   updated_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ not null default now(),
-  foreign key (account_id) REFERENCES account (id) on delete cascade,
-  foreign key (address_id) REFERENCES address (id) on delete cascade
+  foreign key (account_id) REFERENCES account (id) on delete cascade
 );
 
+
 create index IF NOT EXISTS idx_profile_account_id on profile using btree (account_id);
+
+create index IF NOT EXISTS idx_profile_country on profile using btree (country_code);
 
 CREATE TABLE if NOT EXISTS session (
   id SERIAL PRIMARY key,
@@ -130,8 +125,6 @@ DROP TABLE if EXISTS oauth;
 DROP TABLE if EXISTS session;
 
 DROP TABLE if EXISTS profile;
-
-DROP TABLE if EXISTS address;
 
 DROP TABLE if EXISTS account;
 

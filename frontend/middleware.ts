@@ -7,6 +7,11 @@ export async function middleware(request: NextRequest) {
         if (!sessionid) {
             return NextResponse.redirect(new URL('/error', request.url))
         }
+    } else if (request.nextUrl.pathname.startsWith('/auth')) {
+        const sessionid = cookies().get('sessionid')
+        if (sessionid) {
+            return NextResponse.redirect(new URL('/', request.url))
+        }
     }
 }
 

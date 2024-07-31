@@ -1,5 +1,5 @@
 import { prismaClient } from "@/lib/db/data-source"
-import { Address, Profile, VERIFIED, WAIT_VERIFICATION } from "@/lib/db/entities"
+import { Profile, VERIFIED, WAIT_VERIFICATION } from "@/lib/db/entities"
 import { createAccountByEmail, createOnetimeCsrfToken, deleteTokenById, findAccountByEmail, getEmailVerificationToken } from "@/lib/db/query"
 import { logger } from "@/lib/logger"
 import { deleteSession, getSession, newSession } from "@/lib/session"
@@ -144,23 +144,15 @@ function extractProfile(data: people_v1.Schema$Person): Profile {
         if (!mainAddress) {
             mainAddress = data.addresses[0]
         }
-        const addr = extractAddress(mainAddress)
-        profile.address = addr
+        profile.countryCode = mainAddress.countryCode
+        profile.region = mainAddress.region
+        profile.city = mainAddress.city
+        profile.postcode = mainAddress.postalCode
+        profile.streetAddress = mainAddress.streetAddress
+        profile.extendedAddress = mainAddress.extendedAddress
     }
     profile.createdAt = new Date()
     return profile
-}
-
-function extractAddress(data: people_v1.Schema$Address): Address {
-    const addr: Address = {}
-    addr.countryCode = data.countryCode
-    addr.country = data.country
-    addr.region = data.region
-    addr.city = data.city
-    addr.postcode = data.postalCode
-    addr.streetAddress = data.streetAddress
-    addr.extendedAddress = data.extendedAddress
-    return addr
 }
 
 async function handlePeopleApiResponse(gaxiosResp: GaxiosResponse<people_v1.Schema$Person>): Promise<number | null> {
@@ -203,26 +195,6 @@ async function handlePeopleApiResponse(gaxiosResp: GaxiosResponse<people_v1.Sche
             }
             db_profile = await tx.profile.create({ data: new_profile })
         }
-
-        if (!db_profile.address_id && profile.address?.countryCode) {
-            const db_addr = await tx.address.create({
-                data: {
-                    country_code: profile.address?.countryCode,
-                    region: profile.address.region,
-                    city: profile.address.city,
-                    postcode: profile.address.postcode,
-                    street_address: profile.address.streetAddress,
-                    extended_address: profile.address.extendedAddress
-                }
-            })
-            db_profile.address_id = db_addr.id
-            await tx.profile.update({
-                where: { id: db_profile.id },
-                data: {
-                    address_id: db_addr.id
-                }
-            })
-        }
     })
     return account_id
 }
@@ -239,6 +211,24 @@ function patchProfile(db_profile: profile, profile: Profile): profile {
     }
     if (!db_profile.photo && profile.photo) {
         db_profile.photo = profile.photo
+    }
+    if (!db_profile.country_code && profile.countryCode) {
+        db_profile.country_code = profile.countryCode
+    }
+    if (!db_profile.region && profile.region) {
+        db_profile.region = profile.region
+    }
+    if (!db_profile.city && profile.city) {
+        db_profile.city = profile.city
+    }
+    if (!db_profile.postcode && profile.postcode) {
+        db_profile.postcode = profile.postcode
+    }
+    if (!db_profile.street_address && profile.streetAddress) {
+        db_profile.street_address = profile.streetAddress
+    }
+    if (!db_profile.extended_address && profile.extendedAddress) {
+        db_profile.extended_address = profile.extendedAddress
     }
     return db_profile
 }

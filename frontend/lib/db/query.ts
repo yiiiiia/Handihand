@@ -1,7 +1,7 @@
 import { account, session, verification } from "@prisma/client";
 import { randToken } from "../util";
 import { prismaClient, PrismaDBConnection } from "./data-source";
-import { Address, EMAIL_AS_IDENTITY, Profile, Tag, TOKEN_ONETIME_CSRF, TOKEN_SESSION_CSRF, TOKEN_VERIFY_EMAIL, VERIFIED, WAIT_VERIFICATION } from "./entities";
+import { EMAIL_AS_IDENTITY, Profile, Tag, TOKEN_ONETIME_CSRF, TOKEN_SESSION_CSRF, TOKEN_VERIFY_EMAIL, VERIFIED, WAIT_VERIFICATION } from "./entities";
 
 export async function findAccountByEmail(email: string, prisma?: PrismaDBConnection): Promise<account | null> {
     if (!prisma) {
@@ -126,9 +126,14 @@ export async function getProfileByAccountId(account_id: number, prisma?: PrismaD
     if (!db_profile) {
         return null
     }
-
-    const profile: Profile = {
+    return {
         id: db_profile.id,
+        countryCode: db_profile.country_code,
+        region: db_profile.region,
+        city: db_profile.city,
+        postcode: db_profile.postcode,
+        streetAddress: db_profile.street_address,
+        extendedAddress: db_profile.extended_address,
         firstName: db_profile.first_name,
         lastName: db_profile.last_name,
         middleName: db_profile.middle_name,
@@ -136,26 +141,6 @@ export async function getProfileByAccountId(account_id: number, prisma?: PrismaD
         updatedAt: db_profile.updated_at,
         createdAt: db_profile.created_at
     }
-    if (db_profile.address_id) {
-        const db_addr = await prisma.address.findUnique({
-            where: {
-                id: db_profile.address_id
-            }
-        })
-        if (db_addr) {
-            const addr: Address = {
-                id: db_addr.id,
-                countryCode: db_addr.country_code,
-                region: db_addr.region,
-                city: db_addr.city,
-                postcode: db_addr.postcode,
-                streetAddress: db_addr.street_address,
-                extendedAddress: db_addr.extended_address
-            }
-            profile.address = addr
-        }
-    }
-    return profile
 }
 
 export async function getAllTags(): Promise<Tag[]> {

@@ -63,41 +63,6 @@ ALTER SEQUENCE public.account_id_seq OWNED BY public.account.id;
 
 
 --
--- Name: address; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.address (
-    id integer NOT NULL,
-    country_code character varying(2) NOT NULL,
-    region text,
-    city text,
-    postcode text,
-    street_address text,
-    extended_address text
-);
-
-
---
--- Name: address_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.address_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: address_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.address_id_seq OWNED BY public.address.id;
-
-
---
 -- Name: oauth; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -138,12 +103,17 @@ ALTER SEQUENCE public.oauth_id_seq OWNED BY public.oauth.id;
 
 CREATE TABLE public.profile (
     id integer NOT NULL,
+    account_id integer NOT NULL,
+    country_code character varying(2),
+    region text,
+    city text,
+    postcode text,
+    street_address text,
+    extended_address text,
     first_name text,
     last_name text,
     middle_name text,
     photo text,
-    address_id integer,
-    account_id integer NOT NULL,
     updated_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -338,13 +308,6 @@ ALTER TABLE ONLY public.account ALTER COLUMN id SET DEFAULT nextval('public.acco
 
 
 --
--- Name: address id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.address ALTER COLUMN id SET DEFAULT nextval('public.address_id_seq'::regclass);
-
-
---
 -- Name: oauth id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -400,14 +363,6 @@ ALTER TABLE ONLY public.account
 
 ALTER TABLE ONLY public.account
     ADD CONSTRAINT account_pkey PRIMARY KEY (id);
-
-
---
--- Name: address address_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.address
-    ADD CONSTRAINT address_pkey PRIMARY KEY (id);
 
 
 --
@@ -507,13 +462,6 @@ ALTER TABLE ONLY public.video_tag
 
 
 --
--- Name: idx_address_country_postcode; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_address_country_postcode ON public.address USING btree (country_code, postcode);
-
-
---
 -- Name: idx_oauth_account_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -525,6 +473,13 @@ CREATE INDEX idx_oauth_account_id ON public.oauth USING btree (account_id);
 --
 
 CREATE INDEX idx_profile_account_id ON public.profile USING btree (account_id);
+
+
+--
+-- Name: idx_profile_country; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_profile_country ON public.profile USING btree (country_code);
 
 
 --
@@ -597,14 +552,6 @@ ALTER TABLE ONLY public.oauth
 
 ALTER TABLE ONLY public.profile
     ADD CONSTRAINT profile_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id) ON DELETE CASCADE;
-
-
---
--- Name: profile profile_address_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.profile
-    ADD CONSTRAINT profile_address_id_fkey FOREIGN KEY (address_id) REFERENCES public.address(id) ON DELETE CASCADE;
 
 
 --

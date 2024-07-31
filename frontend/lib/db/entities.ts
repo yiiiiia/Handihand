@@ -22,25 +22,19 @@ export type Account = {
     createdAt?: Date;
 }
 
-export type Address = {
+export type Profile = {
     id?: number | undefined;
     countryCode?: Nullable<string>;
-    country?: Nullable<string>;
     region?: Nullable<string>;
     city?: Nullable<string>;
     postcode?: Nullable<string>;
     streetAddress?: Nullable<string>;
     extendedAddress?: Nullable<string>;
-}
-
-export type Profile = {
-    id?: number | undefined;
     firstName?: Nullable<string>;
     lastName?: Nullable<string>;
     middleName?: Nullable<string>;
     photo?: Nullable<string>;
     account?: Nullable<Account>;
-    address?: Nullable<Address>;
     updatedAt?: Nullable<Date>;
     createdAt?: Date;
 }
