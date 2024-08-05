@@ -1,226 +1,88 @@
 'use client'
 
-import Fade from "@/app/ui/Fade";
-import Notice, { NoticeProps } from "@/app/ui/notice";
 import { resendEmail } from "@/lib/action/signup";
-import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
-import { Dispatch, memo, MouseEventHandler, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
-import { CiWarning } from "react-icons/ci";
+import { useEffect, useRef, useState } from "react";
+import { IoCheckmark } from "react-icons/io5";
 import { LuShieldAlert } from "react-icons/lu";
-import { TbFileSad } from "react-icons/tb";
-
-const COUNT_DOWN = 3
-const NOTICE_DURATION = 5000
-
-type NoticeLevel = 'info' | 'warn' | 'error'
-
-type NoticeMeta = {
-    level: NoticeLevel,
-    header: string,
-    message: string,
-    show: boolean
-    key: number,
-}
-
-type AppState = {
-    countDown: number,
-    noticeMetas: NoticeMeta[]
-}
-
-const initState: AppState = {
-    countDown: 0,
-    noticeMetas: [],
-}
-
-let globalNoticeKey = 0
 
 export default function VerifyEmail({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
-    if (typeof searchParams['email'] !== 'string' || !searchParams['email']) {
-        notFound()
-    }
-    if (typeof searchParams['csrf'] !== 'string' || !searchParams['csrf']) {
+    const expired = searchParams['expired'] === 'true'
+    const paramEmail = searchParams['email'] as string
+    const paramCsrf = searchParams['csrf'] as string
+    if (!paramEmail || !paramCsrf || !paramEmail.trim() || !paramCsrf.trim()) {
         notFound()
     }
 
-    const [appState, setAppState] = useState<AppState>(initState)
-    const csrfRef = useRef(searchParams.csrf)
+    const email = paramEmail.trim()
+    const csrf = paramCsrf.trim()
+    const [cooldown, setCooldown] = useState(0)
+    const [resendProcessing, setResendProcessing] = useState(false)
+    const csrfRef = useRef(csrf)
     const router = useRouter()
+    const cooldownTime = 3 // in second
+
+    const emailResendHandler = async () => {
+        if (resendProcessing) {
+            return
+        }
+        setResendProcessing(true)
+        const resendResult = await resendEmail(email, csrfRef.current)
+        if (!resendResult.ok) {
+            router.push('/error')
+        }
+        csrfRef.current = resendResult.csrf
+        setCooldown(cooldownTime)
+        setResendProcessing(false)
+    }
+
+    const resendClickable = () => {
+        if (cooldown === 0) {
+            return <span className="text-red-700 hover:cursor-pointer" onClick={emailResendHandler}>Resend</span>
+        }
+        return <span className="text-gray-600 hover:cursor-not-allowed">Resend ({cooldown})</span>
+    }
+
     useEffect(() => {
-        if (appState.countDown > 0) {
+        if (cooldown > 0) {
             setTimeout(() => {
-                setAppState(old => ({ ...old, countDown: old.countDown - 1 }))
+                setCooldown(cur => cur - 1)
             }, 1000)
         }
-    }, [appState.countDown])
-
-    const email = searchParams['email']
-    const expired = searchParams['expired'] === 'true'
-    const handler = useCallback(() => {
-        clickResendHandler(email, csrfRef, setAppState, router, expired)
-    }, [email, csrfRef, router, expired])
-
-    const remove_notice = useCallback((key: number) => {
-        setTimeout(() => {
-            setAppState(old => {
-                return { ...old, noticeMetas: old.noticeMetas.filter(e => { e.key !== key }) }
-            })
-        }, 500)
-    }, [])
-
+    }, [cooldown])
     return (
-        <div>
-            <div className="flex flex-col gap-y-5 absolute top-3 right-2">
+        <div className="grid h-screen w-screen place-content-center">
+            <div className="">
                 {
-                    appState.noticeMetas.map((meta) => {
-                        return <FadingNotice key={meta.key} duration={NOTICE_DURATION} inProp={meta.show} noticeProps={getNoticeProps(meta)} onExited={() => remove_notice(meta.key)} />
-                    })
+                    expired &&
+                    <div className="flex flex-col gap-y-5 items-center w-full text-xl">
+                        <LuShieldAlert size={100} className="rounded-full bg-yellow-200 m-16 p-4" />
+                        <h1 className="font-semibold text-2xl">The link has expired</h1>
+                        <p className="">You can request resending an email to <Link href={getEmailUrl(email)} className="underline underline-offset-2 text-red-700 hover:cursor-pointer">{email}</Link> by clicking the text below</p>
+                        {resendClickable()}
+                    </div>
                 }
-            </div>
-            <div className="flex min-h-screen items-center justify-center bg-pnk-100">
-                <div className="rounded-lg px-16 py-14">
-                    {getEmailResendComp(email, appState.countDown, expired, handler)}
-                </div>
+                {
+                    !expired &&
+                    <div className="flex flex-col gap-y-5 items-center w-full text-xl">
+                        <IoCheckmark size={100} className="rounded-full bg-green-400 m-16 p-4" />
+                        <p className="">A verification email has been sent to <Link href={getEmailUrl(email)} className="underline underline-offset-2 text-red-700 hover:cursor-pointer">{email},</Link></p>
+                        <p className="">please log in your email and verify.</p>
+                        <p className="text-base mt-10">Didn&apos;t receive email? {resendClickable()}</p>
+                    </div>
+                }
             </div>
         </div>
     )
 }
 
-const getEmailResendComp = (email: string, countdown: number, expired: boolean, handler: MouseEventHandler) => {
-    if (!expired) {
-        return (
-            <>
-                <div className="flex justify-center">
-                    <div className="rounded-full bg-green-200 p-6">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 p-4">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-8 w-8 text-white">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                <h3 className="my-6 text-center text-3xl font-semibold text-gray-700">Congratuation!!!</h3>
-                <p className="w-[280px] text-center font-normal text-gray-600">A verification email has been sent to <span className="underline font-semibold">{email}</span></p>
-                {checkEmailButton(email)}
-                <p className="text-sm mt-10 text-center">Didn&apos;t receive email? <ResendSpan countDown={countdown} handler={handler} /></p>
-            </>
-        )
-    } else {
-        return (
-            <>
-                <div className="flex justify-center">
-                    <div className="rounded-full bg-yellow-200 p-6">
-                        <LuShieldAlert size={50} />
-                    </div>
-                </div>
-                <h3 className="my-6 text-center text-3xl font-semibold text-gray-700">Caution</h3>
-                <p className="w-[420px] text-center font-normal text-gray-600">The link has expired, you can request resending an email to <span className="underline font-semibold">{email}</span> by clicking the button below</p>
-                <ResendBtn countDown={countdown} handler={handler} />
-            </>
-        )
-    }
-}
-
-// use memo to prevent unnecessary re-rendering of child component
-const FadingNotice = memo(function FadingNotice({ inProp, duration, noticeProps, onExited }: { inProp: boolean, duration: number, noticeProps: NoticeProps, onExited: () => void }) {
-    return (
-        <Fade duration={duration} inProp={inProp} onExited={onExited} >
-            <Notice props={noticeProps} />
-        </Fade>
-    )
-})
-
-// use memo to prevent unnecessary re-rendering of child component
-const ResendSpan = memo(function ResendEmail({ countDown, handler }: { countDown: number, handler: MouseEventHandler }) {
-    if (countDown > 0) {
-        return <span className="text-gray-400 hover:cursor-not-allowed">Resend it ({countDown})</span>
-    } else {
-        return <span className="text-red-700 hover:cursor-pointer hover:text-red-900" onClick={handler}>Resend it</span>
-    }
-})
-
-// use memo to prevent unnecessary re-rendering of child component
-const ResendBtn = memo(function ResendBtn({ countDown, handler }: { countDown: number, handler: MouseEventHandler }) {
-    if (countDown > 0) {
-        return (<button className="mx-auto mt-8 block rounded-xl border-4 border-transparent bg-gray-400 px-6 py-3 text-center font-medium text-balck outline-8 hover:cursor-not-allowed"
-            disabled={true}>Resend Email ({countDown})</button>)
-    } else {
-        return (<button className="mx-auto mt-8 block rounded-xl border-4 border-transparent bg-amber-200 px-6 py-3 text-center font-medium text-balck outline-8 hover:scale-110 transition duration-200 ease-in-out"
-            onClick={handler} disabled={false}>Resend Email</button>)
-    }
-})
-
-const clickResendHandler = async (email: string, ref: MutableRefObject<string>, fn: Dispatch<SetStateAction<AppState>>, router: AppRouterInstance, expired: boolean) => {
-    const csrf = await resendEmail(email, ref.current)
-    if (!csrf) {
-        router.push('/error')
-    }
-    if (expired) {
-        router.push(`/auth/verify?email=${email}&csrf=${csrf}`)
-    }
-    ref.current = csrf
-    const key = globalNoticeKey++
-    const meta: NoticeMeta = {
-        level: 'info', header: 'Email Sent', message: 'Please check your mailbox', show: true, key: key
-    }
-    fn(old => ({ ...old, countDown: COUNT_DOWN, noticeMetas: [...old.noticeMetas, meta] }))
-    setTimeout(() => {
-        fn(old => ({ ...old, noticeMetas: old.noticeMetas.map(e => e.key === key ? { ...e, show: false } : e) }))
-    }, NOTICE_DURATION)
-}
-
-const checkEmailButton = (email: string) => {
-    let url = '#'
+function getEmailUrl(email: string): string {
     if (email.endsWith('gmail.com')) {
-        url = 'https://mail.google.com/mail'
+        return 'https://mail.google.com/mail'
     }
     if (email.endsWith('yahoo.com')) {
-        url = 'https://login.yahoo.com'
+        return 'https://login.yahoo.com'
     }
-    return <button className="mx-auto mt-8 block rounded-xl border-4 border-transparent bg-red-600 px-6 py-3 text-center font-medium
-         text-white outline-8 hover:scale-110 transition duration-200 ease-in-out"><Link href={url}>Check Email</Link></button>
-}
-
-const getIcon = (level: NoticeLevel): React.ReactNode => {
-    if (level === 'info') {
-        return (
-            <div className="px-2">
-                <svg width="24" height="24" viewBox="0 0 1792 1792" fill="#44C997" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1299 813l-422 422q-19 19-45 19t-45-19l-294-294q-19-19-19-45t19-45l102-102q19-19 45-19t45 19l147 147 275-275q19-19 45-19t45 19l102 102q19 19 19 45t-19 45zm141 83q0-148-73-273t-198-198-273-73-273 73-198 198-73 273 73 273 198 198 273 73 273-73 198-198 73-273zm224 0q0 209-103 385.5t-279.5 279.5-385.5 103-385.5-103-279.5-279.5-103-385.5 103-385.5 279.5-279.5 385.5-103 385.5 103 279.5 279.5 103 385.5z" />
-                </svg>
-            </div>
-        )
-    }
-    if (level === 'error') {
-        return (
-            <div className="px-2">
-                <TbFileSad size={30} />
-            </div>
-        )
-    }
-    if (level === 'warn') {
-        return (
-            <div className="px-2">
-                <CiWarning size={30} />
-            </div>
-        )
-    }
-}
-
-const getNoticeProps = (meta: NoticeMeta): NoticeProps => {
-    let theme = ''
-    if (meta.level === 'info') {
-        theme = 'rounded-lg bg-green-100 p-3 shadow-lg'
-    } else if (meta.level === 'warn') {
-        theme = 'rounded-lg bg-yellow-100 p-3 shadow-lg'
-    } else {
-        theme = 'rounded-lg bg-red-100 p-3 shadow-lg'
-    }
-    return {
-        theme: theme,
-        icon: getIcon(meta.level),
-        header: meta.header,
-        message: meta.message
-    }
+    return '#'
 }

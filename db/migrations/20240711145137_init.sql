@@ -21,19 +21,16 @@ create TABLE if not exists profile (
   postcode text,
   street_address text,
   extended_address text,
-  first_name text,
-  last_name text,
-  middle_name text,
+  username text UNIQUE,
   photo text,
   updated_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ not null default now(),
   foreign key (account_id) REFERENCES account (id) on delete cascade
 );
 
-
 create index IF NOT EXISTS idx_profile_account_id on profile using btree (account_id);
 
-create index IF NOT EXISTS idx_profile_country on profile using btree (country_code);
+create index IF NOT EXISTS idx_profile_country_code on profile using btree (country_code);
 
 CREATE TABLE if NOT EXISTS session (
   id SERIAL PRIMARY key,
@@ -108,13 +105,24 @@ create index if not exists idx_video_ssl_url on video using btree (ssl_url);
 
 create index if not exists idx_video_thumbnail_url on video using btree (thumbnail_url);
 
-create index if not exists idx_video_title_description on video using gin (to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')));
+create index if not exists idx_video_title_description on video using gin (
+  to_tsvector(
+    'english',
+    coalesce(title, '') || ' ' || coalesce(description, '')
+  )
+);
 
 create table if not exists video_tag (
   video_id int not null,
   tag_id int not null,
   created_at TIMESTAMPTZ not null default now(),
   PRIMARY key (video_id, tag_id)
+);
+
+CREATE TABLE countries (
+  id SERIAL PRIMARY KEY,
+  country_code VARCHAR(2) NOT NULL UNIQUE,
+  country_name TEXT NOT NULL UNIQUE
 );
 
 -- migrate:down
@@ -133,3 +141,5 @@ DROP TABLE if EXISTS video_tag;
 DROP TABLE if EXISTS tag;
 
 DROP TABLE if EXISTS video;
+
+DROP TABLE if EXISTS countries;

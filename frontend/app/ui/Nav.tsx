@@ -1,81 +1,26 @@
 'use client'
 
+import { checkSessionConsistency } from '@/lib/action/signin';
 import { selectSearchBy, toogleSearchBy } from '@/lib/features/search/searchSlice';
 import { displayUploader } from '@/lib/features/uploader/uploaderSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
-import classNames from 'classnames';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MutableRefObject, ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import { MutableRefObject, useContext, useEffect, useRef, useState } from 'react';
 import { BsCartPlusFill } from 'react-icons/bs';
 import { FaUserCircle } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { MdVideoLibrary } from 'react-icons/md';
 import { RiSearch2Line } from 'react-icons/ri';
 import { SessionContext } from '../SessionProvider';
+import BusyModal from './BusyModal';
 import Modal from './Modal';
-import Uploader from './Uploader';
 import Spinner from './Spinner';
-import { purgeInvalidSession } from '@/lib/action/signin';
+import Uploader from './Uploader';
 
-function BgColorInput({ normalColor, hoverColor, labelName, hint, icon = undefined }: { normalColor: string, hoverColor: string, labelName: string, hint: string, icon?: ReactNode }) {
-    const [bgColor, setBgColor] = useState(normalColor)
-    const hoverColorEffect = () => {
-        setBgColor(hoverColor)
-    }
-    const normalColorEffect = () => {
-        setBgColor(normalColor)
-    }
-    return (
-        <div className={'flex flex-row rounded-full px-4 py-1 ' + bgColor} onMouseOver={hoverColorEffect} onMouseOut={normalColorEffect}>
-            <label className='text-sm hover:'>
-                {labelName} <br />
-                <input type='text' placeholder={hint} className={'focus:outline-none ' + bgColor}></input>
-            </label>
-            {!!icon && icon}
-        </div>
-    )
-}
-
-function CategoryBtn() {
-    const searchBy = useAppSelector(selectSearchBy)
-    const getTheme = (category: string) => {
-        let basicTheme = classNames('rounded-full', 'w-28', 'h-10', 'hover:cursor-pointer')
-        if (category === searchBy) {
-            basicTheme = classNames(basicTheme, 'font-semibold')
-        } else {
-            basicTheme = classNames(basicTheme, 'font-light', 'hover:bg-gray-200 hover:font-normal')
-        }
-        return basicTheme
-    }
-    const dispatch = useAppDispatch()
-    return (
-        <div className="justify-self-center flex flex-row text-lg items-center">
-            <button className={getTheme('video')} onClick={() => dispatch(toogleSearchBy())}>Videos</button>
-            <button className={getTheme('product')} onClick={() => dispatch(toogleSearchBy())}>Products</button>
-        </div>
-    )
-}
-
-function UpperRightCorner() {
-    const session = useContext(SessionContext)
-    const ref = useRef(null);
-    return (
-        <div ref={ref} className="relative inline-block text-left ml-5">
-            <button className="flex flex-row border-2 px-2 py-2 rounded-full items-center hover:shadow-md">
-                <GiHamburgerMenu size={25} />
-                <span className="px-2">
-                    {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={35} height={35} alt="Picture of Profile" className='rounded-full' /> : <FaUserCircle size={30} />}
-                </span>
-            </button>
-            <ListItems nodeRef={ref} />
-        </div>
-    )
-}
-
-function ListItems({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
+function DropList({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
     const session = useContext(SessionContext)
     const [showDropList, setShowDropList] = useState(false)
     useEffect(() => {
@@ -91,37 +36,32 @@ function ListItems({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
             document.removeEventListener('click', handleClickOutside, true);
         };
     }, [nodeRef]);
-    const items = () => {
-        if (!session) {
-            return (
+    return (
+        <div className={"absolute right-0 z-10 w-40 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none mt-2 " + (showDropList ? 'visible ' : 'invisible ')} tabIndex={-1}>
+            {
+                !session &&
                 <div className="py-2">
                     <a href="/auth/signin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Sign up / Log in</a>
                 </div>
-            )
-        } else {
-            return (
+            }
+            {
+                session &&
                 <div className="py-2">
-                    <a href="/account/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account Center</a>
+                    <a href="/account/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account</a>
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
                     <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
                 </div>
-            )
-        }
-    }
-    let className = (showDropList ? 'visible ' : 'invisible ') + "absolute right-0 z-10 mt-1 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none mt-2"
-    return (
-        <div className={className} tabIndex={-1}>
-            {items()}
+            }
         </div>
     )
 }
 
-function LoginNotice({ show, setVisibility }: { show: boolean, setVisibility: (a: boolean) => void }) {
+function SigninAlert({ show: visibility, setVisibility }: { show: boolean, setVisibility: (a: boolean) => void }) {
     const [showSpinner, setShowSpinner] = useState(false)
     const cancel = () => {
         setVisibility(false)
     }
-    if (show) {
+    if (visibility) {
         return (
             <>
                 <Modal>
@@ -142,51 +82,107 @@ function LoginNotice({ show, setVisibility }: { show: boolean, setVisibility: (a
     }
 }
 
+type Alert = {
+    show: boolean,
+    type?: 'signin' | 'complete_profile'
+}
+
 export default function Nav() {
-    const [hasInvalidSession, setHasInvalidSession] = useState(false)
-    const session = useContext(SessionContext)
-    const [showLoginNotice, setShowLoginNotice] = useState(false)
+    const [_, setHasInvalidSession] = useState(false)
+    const [showAlert, setAlert] = useState<Alert>({ show: false })
+    const [showSpinner, setShowSpinner] = useState(false)
+    const upperRightCornerRef = useRef<HTMLDivElement>(null)
+
     const dispatch = useAppDispatch()
+    const searchBy = useAppSelector(selectSearchBy)
+    const session = useContext(SessionContext)
+
+    const getCategoryTheme = (catetory: string): string => {
+        const base = "rounded-full hover:cursor-pointer px-5 py-2"
+        if (catetory === searchBy) {
+            return base + " font-semibold"
+        }
+        return base + " text-gray-400 hover:text-gray-500 hover:bg-gray-200 hover:font-normal"
+    }
+    const switchSearchBy = (catetory: string): void => {
+        if (catetory !== searchBy) {
+            dispatch(toogleSearchBy())
+        }
+    }
     const openUploader = () => {
         if (!session) {
-            setShowLoginNotice(true)
-            return
+            setAlert({ show: true, type: 'signin' })
+        } else {
+            dispatch(displayUploader())
         }
-        dispatch(displayUploader())
     }
+
     useEffect(() => {
-        purgeInvalidSession().then(purged => {
+        checkSessionConsistency().then(purged => {
             if (purged) {
                 setHasInvalidSession(true)
             }
         })
     }, [])
+
     return (
         <>
-            <nav className="flex flex-col px-12 py-5">
-                <div className="grid grid-cols-3">
-                    <div className="">
-                        <Image src="/logo.png" width={100} height={100} alt="Logo" />
+            <nav id='nav' className="relative py-4">
+                <Image src="/logo.png" width={180} height={180} alt="Logo" className='absolute top-4 left-0' />
+                <div className='flex flex-col items-center'>
+                    <div className='relative flex flex-row mt-2'>
+                        <button className={getCategoryTheme('video')} onClick={() => { switchSearchBy('video') }} >Videos</button>
+                        <button className={getCategoryTheme('product')} onClick={() => { switchSearchBy('product') }} >Products</button>
                     </div>
-                    <CategoryBtn />
-                    <div className="justify-self-end flex flex-row">
-                        <button className="flex flex-row items-center px-4 mx-2 my-2 rounded-lg bg-red-500" onClick={openUploader}>
-                            <MdVideoLibrary size={24} />
-                            <span className="text-sm text-white pl-2">Upload</span>
+                    <div className="relative flex flex-row border rounded-full shadow-lg text-sm mt-2">
+                        <button className='flex flex-col rounded-full hover:bg-gray-200 py-2 pl-8 w-72'>
+                            <label className=''>Where</label>
+                            <input type='text' placeholder="Search countries" className='focus:outline-none rounded-full bg-transparent' />
                         </button>
-                        <button className="flex flex-row items-center px-4 mx-2 my-2 rounded-lg bg-red-500">
-                            <BsCartPlusFill size={24} />
-                            <span className="text-sm text-white pl-2">Cart</span>
+                        <button className='relative flex flex-col rounded-full hover:bg-gray-200 py-2 pl-8 w-72'>
+                            <label className=''>What</label>
+                            <input type='text' placeholder="Search keywords" className='focus:outline-none rounded-full bg-transparent' />
                         </button>
-                        <UpperRightCorner />
+                        <RiSearch2Line size={40} className='absolute right-2 top-2 rounded-full text-white bg-rose-500 py-2 hover:cursor-pointer hover:bg-rose-800' />
                     </div>
                 </div>
-                <div className="self-center grid grid-cols-2 border rounded-full shadow-lg">
-                    <BgColorInput normalColor={'bg-white'} hoverColor={'bg-gray-200'} labelName={'Where'} hint='Search countries' />
-                    <BgColorInput normalColor={'bg-white'} hoverColor={'bg-gray-200'} labelName={'What'} hint='Search keyword' icon={<RiSearch2Line size={40} className='rounded-full text-white bg-red-500 px-2 py-2 hover:cursor-pointer' />} />
+                <div className='flex flex-row gap-x-4 justify-start items-center absolute top-4 right-4'>
+                    <button className="flex flex-row items-center px-4 py-2 rounded-lg bg-rose-500" onClick={openUploader}>
+                        <MdVideoLibrary size={24} />
+                        <span className="text-sm text-white pl-2">Upload</span>
+                    </button>
+                    <button className="flex flex-row items-center px-4 py-2 rounded-lg bg-rose-500">
+                        <BsCartPlusFill size={24} />
+                        <span className="text-sm text-white pl-2">Cart</span>
+                    </button>
+                    <div ref={upperRightCornerRef} className="relative inline-block text-left ml-5">
+                        <button className="relative flex flex-row gap-x-2 border-2 px-2 rounded-full items-center hover:shadow-md hover:cursor-pointer">
+                            <GiHamburgerMenu size={18} />
+                            {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" className='rounded-full' /> : <FaUserCircle size={30} className='m-1' />}
+                        </button>
+                        <DropList nodeRef={upperRightCornerRef} />
+                    </div>
                 </div>
             </nav>
-            <LoginNotice show={showLoginNotice} setVisibility={setShowLoginNotice} />
+            {
+                showAlert.show && showAlert.type === 'signin' &&
+                <Modal>
+                    <div className="mb-8">
+                        <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
+                        <p className="text-gray-600">Log in to enjoy most of the app</p>
+                    </div>
+                    <div className="space-y-4">
+                        <Link href="/auth/signin">
+                            <button className="p-3 bg-black rounded-full text-white w-full font-semibold" onClick={() => { setShowSpinner(true) }}>Log in</button>
+                        </Link>
+                        <button className="p-3 bg-white border rounded-full w-full font-semibold" onClick={() => { setAlert({ show: false }) }}>Skip for now</button>
+                    </div>
+                </Modal>
+            }
+            {
+                showSpinner &&
+                <BusyModal />
+            }
             <Uploader />
         </>
     )

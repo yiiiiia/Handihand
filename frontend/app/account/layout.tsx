@@ -1,20 +1,63 @@
-import { useContext } from "react"
-import { SessionContext } from "../SessionProvider"
+'use client'
+
+import Image from 'next/image';
+import Link from "next/link";
+import { useRouter } from 'next/navigation';
+import { useContext, useEffect, useRef, useState } from "react";
+import { GiHamburgerMenu } from "react-icons/gi";
+import { SessionContext } from "../SessionProvider";
 
 export default function AccountCenterLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+    const route = useRouter()
+    const session = useContext(SessionContext)
+    if (!session) {
+        route.push('/')
+    }
+
+    const [showDropList, setShowDropList] = useState(false)
+    const rightCornerDivRef = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (rightCornerDivRef.current && e.target) {
+                if (rightCornerDivRef.current.contains(e.target as HTMLElement)) {
+                    if (!showDropList) {
+                        setShowDropList(true)
+                    }
+                } else if (showDropList) {
+                    setShowDropList(false)
+                }
+            }
+        };
+        document.addEventListener('click', handleClickOutside, true);
+        return () => {
+            document.removeEventListener('click', handleClickOutside, true);
+        };
+    }, []);
+
     return (
-        <div className="flex flex-row h-screen">
-            <div className="w-72 h-full my-6 rounded-3xl ml-4 pl-4 py-4 border-1 px-2 shadow-lg">
-                <h1 className="text-2xl font-bold">Account Center</h1>
-                <hr className="mt-4 mb-4 border-1 border-black"></hr>
-                <div className="flex flex-col gap-y-1">
-                    <p className="bg-blue-100 py-2 rounded-2xl px-2 hover:cursor-pointer font-semibold">My Profile</p>
-                    <p className="bg-slate-50 py-2 rounded-2xl px-2 hover:cursor-pointer font-semibold">My Videos</p>
-                    <p className="bg-slate-50 py-2 rounded-2xl px-2 hover:cursor-pointer font-semibold">As a Seller</p>
-                    <p className="bg-slate-50 py-2 rounded-2xl px-2 hover:cursor-pointer font-semibold">As a Buyer</p>
+        <div className="mx-auto h-dvh w-10/12 3xl:w-2/3">
+            <div className="relative block h-24">
+                <Link href="/"><Image src="/logo.png" width={180} height={180} alt="Logo" className='absolute top-4 left-0 hover:cursor-pointer' /></Link>
+                <div ref={rightCornerDivRef} className='flex flex-row gap-x-4 justify-start items-center absolute top-8 right-0'>
+                    <div className="relative inline-block text-left ml-5">
+                        <button className="relative flex flex-row gap-x-2 border-2 pl-4 pr-2 py-1 rounded-full items-center hover:shadow-md hover:cursor-pointer">
+                            <GiHamburgerMenu size={18} />
+                            <Image src={session?.profile?.photo ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" className='rounded-full' />
+                        </button>
+                        {
+                            showDropList &&
+                            <div className="absolute right-0 z-10 w-40 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none mt-2 " tabIndex={-1}>
+                                <div className="py-2">
+                                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
+                                    <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
                 </div>
             </div>
-            <div className="grow mt-6 rounded-3xl ml-4 pl-4 py-4 shadow-lg h-full">
+            <hr className='mt-2' />
+            <div>
                 {children}
             </div>
         </div>

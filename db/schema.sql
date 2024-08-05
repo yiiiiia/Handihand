@@ -110,9 +110,7 @@ CREATE TABLE public.profile (
     postcode text,
     street_address text,
     extended_address text,
-    first_name text,
-    last_name text,
-    middle_name text,
+    username text,
     photo text,
     updated_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
@@ -390,6 +388,14 @@ ALTER TABLE ONLY public.profile
 
 
 --
+-- Name: profile profile_username_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.profile
+    ADD CONSTRAINT profile_username_key UNIQUE (username);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -476,10 +482,10 @@ CREATE INDEX idx_profile_account_id ON public.profile USING btree (account_id);
 
 
 --
--- Name: idx_profile_country; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_profile_country_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_profile_country ON public.profile USING btree (country_code);
+CREATE INDEX idx_profile_country_code ON public.profile USING btree (country_code);
 
 
 --

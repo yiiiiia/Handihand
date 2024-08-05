@@ -7,7 +7,7 @@ import { profile } from "@prisma/client"
 import { GaxiosResponse } from "gaxios"
 import { google, people_v1 } from 'googleapis'
 import { cookies } from "next/headers"
-import { notFound, redirect } from "next/navigation"
+import { redirect } from "next/navigation"
 import { NextRequest } from "next/server"
 import { googleOAuthClient } from "./oauth"
 
@@ -32,32 +32,26 @@ async function handleEmailCallback(request: NextRequest) {
     if (!email || !token) {
         redirect('/error')
     }
-    const verify = await getEmailVerificationToken(email, token)
-    if (!verify) {
-        notFound()
+    const dbToken = await getEmailVerificationToken(email, token)
+    if (!dbToken) {
+        redirect('/not-found')
     }
+    await deleteTokenById(dbToken.id)
 
-    await deleteTokenById(verify.id)
+    const validityPeriod = 5 * 60 * 1000
     const account = await findAccountByEmail(email)
     if (!account) {
         logger.error(`SYSTEM ERROR: account with email '${email}' does not exist, but it is included in a verification callback`)
         redirect('/error')
     }
 
-    const timePassed = Math.abs(Date.now() - verify.created_at.getTime())
-    if (timePassed > 5 * 60 * 1000 && account.state === WAIT_VERIFICATION) {
+    const timePassed = Math.abs(Date.now() - dbToken.created_at.getTime())
+    if (timePassed > validityPeriod && account.state === WAIT_VERIFICATION) {
         // token has expired
-        let csrf = ''
-        await prismaClient.$transaction(async tx => {
-            // 1. delete the old token 
-            await deleteTokenById(verify.id, tx)
-            // 2. create a new csrf one-time token
-            csrf = await createOnetimeCsrfToken()
-        })
+        const csrf = await createOnetimeCsrfToken()
         // redirect to the email verification page
         redirect(`/auth/verify?email=${email}&expired=true&csrf=${csrf}`)
     }
-
     if (account.state === WAIT_VERIFICATION) {
         await prismaClient.account.update({
             where: { id: account.id },
@@ -66,7 +60,6 @@ async function handleEmailCallback(request: NextRequest) {
             }
         })
     }
-
     await newSession(account.id)
     redirect('/')
 }
@@ -129,12 +122,6 @@ async function handleGoogleCallback(request: NextRequest) {
 
 function extractProfile(data: people_v1.Schema$Person): Profile {
     const profile: Profile = {}
-    if (data.names && data.names.length > 0) {
-        const dataName = data.names[0]
-        profile.firstName = dataName.givenName
-        profile.lastName = dataName.familyName
-        profile.middleName = dataName.middleName
-    }
     if (data.photos && data.photos.length > 0) {
         profile.photo = data.photos[0].url
     }
@@ -156,20 +143,28 @@ function extractProfile(data: people_v1.Schema$Person): Profile {
 }
 
 async function handlePeopleApiResponse(gaxiosResp: GaxiosResponse<people_v1.Schema$Person>): Promise<number | null> {
+    logger.info(`gaxiosResp data: ${JSON.stringify(gaxiosResp.data)}`)
+
     if (!gaxiosResp.data.emailAddresses || gaxiosResp.data.emailAddresses.length == 0 || !gaxiosResp.data.emailAddresses[0].value) {
         logger.error(`can not handle google sign in, api response does not contain a user email address: ${JSON.stringify(gaxiosResp)}`)
         redirect('/error')
     }
-
     const email = gaxiosResp.data.emailAddresses[0].value
-    let account_id = null
+    const lastIndexOfAt = email.lastIndexOf('@')
+    if (lastIndexOfAt === -1) {
+        logger.error(`cannot handle google sign in, email address from the api response is not valid: ${email}`)
+        redirect('/error')
+    }
+
+    const defaultUsername = email.substring(0, lastIndexOfAt)
+    let accountId: number = -1
     await prismaClient.$transaction(async tx => {
         let account = await findAccountByEmail(email, tx)
         if (!account) {
             const newAccountId = await createAccountByEmail(email, null, true, tx)
-            account_id = newAccountId[0].id
+            accountId = newAccountId[0].id
         } else {
-            account_id = account.id
+            accountId = account.id
             if (account.state === WAIT_VERIFICATION) {
                 await tx.account.update({
                     where: { id: account.id },
@@ -177,58 +172,66 @@ async function handlePeopleApiResponse(gaxiosResp: GaxiosResponse<people_v1.Sche
                 })
             }
         }
+        if (accountId === -1) {
+            throw new Error(`failed to get database account id, email: ${email}`)
+        }
 
         const profile = extractProfile(gaxiosResp.data)
-        let db_profile = await tx.profile.findFirst({
-            where: { account_id: account_id },
+        profile.username = defaultUsername
+        let dbProfile = await tx.profile.findFirst({
+            where: { account_id: accountId },
             orderBy: { created_at: 'desc' }
         })
-        if (db_profile) {
-            db_profile = patchProfile(db_profile, profile)
+        if (!dbProfile) {
+            await tx.profile.create({
+                data: {
+                    account_id: accountId,
+                    country_code: profile.countryCode,
+                    region: profile.region,
+                    city: profile.city,
+                    postcode: profile.postcode,
+                    street_address: profile.streetAddress,
+                    extended_address: profile.extendedAddress,
+                    username: defaultUsername,
+                    photo: profile.photo,
+                    created_at: new Date()
+                }
+            })
         } else {
-            const new_profile = {
-                first_name: profile.firstName ?? null,
-                last_name: profile.lastName ?? null,
-                middle_name: profile.middleName ?? null,
-                photo: profile.photo ?? null,
-                account_id: account_id,
-            }
-            db_profile = await tx.profile.create({ data: new_profile })
+            dbProfile = patchProfile(dbProfile, profile)
+            await tx.profile.update({
+                where: { id: dbProfile.id },
+                data: dbProfile
+            })
         }
     })
-    return account_id
+    return accountId
 }
 
-function patchProfile(db_profile: profile, profile: Profile): profile {
-    if (!db_profile.first_name && profile.firstName) {
-        db_profile.first_name = profile.firstName
+function patchProfile(dbProfile: profile, profile: Profile): profile {
+    if (!dbProfile.username) {
+        dbProfile.username = profile.username ?? null
     }
-    if (!db_profile.last_name && profile.lastName) {
-        db_profile.last_name = profile.lastName
+    if (!dbProfile.photo && profile.photo) {
+        dbProfile.photo = profile.photo
     }
-    if (!db_profile.middle_name && profile.middleName) {
-        db_profile.middle_name = profile.middleName
+    if (!dbProfile.country_code && profile.countryCode) {
+        dbProfile.country_code = profile.countryCode
     }
-    if (!db_profile.photo && profile.photo) {
-        db_profile.photo = profile.photo
+    if (!dbProfile.region && profile.region) {
+        dbProfile.region = profile.region
     }
-    if (!db_profile.country_code && profile.countryCode) {
-        db_profile.country_code = profile.countryCode
+    if (!dbProfile.city && profile.city) {
+        dbProfile.city = profile.city
     }
-    if (!db_profile.region && profile.region) {
-        db_profile.region = profile.region
+    if (!dbProfile.postcode && profile.postcode) {
+        dbProfile.postcode = profile.postcode
     }
-    if (!db_profile.city && profile.city) {
-        db_profile.city = profile.city
+    if (!dbProfile.street_address && profile.streetAddress) {
+        dbProfile.street_address = profile.streetAddress
     }
-    if (!db_profile.postcode && profile.postcode) {
-        db_profile.postcode = profile.postcode
+    if (!dbProfile.extended_address && profile.extendedAddress) {
+        dbProfile.extended_address = profile.extendedAddress
     }
-    if (!db_profile.street_address && profile.streetAddress) {
-        db_profile.street_address = profile.streetAddress
-    }
-    if (!db_profile.extended_address && profile.extendedAddress) {
-        db_profile.extended_address = profile.extendedAddress
-    }
-    return db_profile
+    return dbProfile
 }

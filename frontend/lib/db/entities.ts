@@ -1,8 +1,7 @@
-export const WAIT_VERIFICATION = "wait_verification"
 export const VERIFIED = "verified"
+export const WAIT_VERIFICATION = "wait_verification"
 export const TOKEN_VERIFY_EMAIL = 'verify_email'
 export const TOKEN_ONETIME_CSRF = 'onetime_csrf'
-export const TOKEN_SESSION_CSRF = 'session_csrf'
 export const EMAIL_AS_IDENTITY = 'email'
 
 
@@ -10,7 +9,7 @@ export type AccountState = 'wait_verification' | 'verified'
 
 export type AccountIdentityType = 'email' | 'phone' | 'x/twitter' | 'github' | 'facebook' | 'apple' | 'amazon' | 'spotify'
 
-export type VerificationType = 'verify_email' | 'onetime_csrf' | 'session_csrf'
+export type VerificationType = 'verify_email' | 'onetime_csrf'
 
 export type Nullable<T> = T | null | undefined
 
@@ -30,9 +29,7 @@ export type Profile = {
     postcode?: Nullable<string>;
     streetAddress?: Nullable<string>;
     extendedAddress?: Nullable<string>;
-    firstName?: Nullable<string>;
-    lastName?: Nullable<string>;
-    middleName?: Nullable<string>;
+    username?: Nullable<string>;
     photo?: Nullable<string>;
     account?: Nullable<Account>;
     updatedAt?: Nullable<Date>;
@@ -46,7 +43,6 @@ export type Session = {
     profile: Nullable<Profile>;
     expireAt: Date;
     createdAt: Date;
-    csrf: string | null;
 }
 
 export type Oauth = {
@@ -83,4 +79,9 @@ export type Video = {
     description: string;
     tags?: string[];
     createdAt?: Date;
+}
+
+export type Country = {
+    code: string;
+    name: string
 }

@@ -1,12 +1,13 @@
-import { account, session, verification } from "@prisma/client";
+import { account, profile, session, verification } from "@prisma/client";
 import { randToken } from "../util";
 import { prismaClient, PrismaDBConnection } from "./data-source";
-import { EMAIL_AS_IDENTITY, Profile, Tag, TOKEN_ONETIME_CSRF, TOKEN_SESSION_CSRF, TOKEN_VERIFY_EMAIL, VERIFIED, WAIT_VERIFICATION } from "./entities";
+import { Country, EMAIL_AS_IDENTITY, Profile, Tag, TOKEN_ONETIME_CSRF, TOKEN_VERIFY_EMAIL, VERIFIED, WAIT_VERIFICATION } from "./entities";
 
-export async function findAccountByEmail(email: string, prisma?: PrismaDBConnection): Promise<account | null> {
-    if (!prisma) {
-        prisma = prismaClient
-    }
+export type IdObject = {
+    id: number
+}
+
+export async function findAccountByEmail(email: string, prisma: PrismaDBConnection = prismaClient): Promise<account | null> {
     return await prisma.account.findUnique({
         where: {
             identity_value_identity_type: {
@@ -17,10 +18,15 @@ export async function findAccountByEmail(email: string, prisma?: PrismaDBConnect
     })
 }
 
-export async function createAccountByEmail(email: string, password: string | null, verified: boolean, prisma?: PrismaDBConnection): Promise<any> {
-    if (!prisma) {
-        prisma = prismaClient
-    }
+export async function findProfilebyUsername(username: string, prisma: PrismaDBConnection = prismaClient): Promise<profile | null> {
+    return await prisma.profile.findUnique({
+        where: {
+            username: username
+        }
+    })
+}
+
+export async function createAccountByEmail(email: string, password: string | null, verified: boolean, prisma: PrismaDBConnection = prismaClient): Promise<IdObject[]> {
     const state = verified ? VERIFIED : WAIT_VERIFICATION
     if (password) {
         return await prisma.$queryRaw`insert into account (identity_type, identity_value, password, state) values ('email', ${email}, crypt(${password}, gen_salt('bf')), ${state}) returning id`
@@ -29,10 +35,16 @@ export async function createAccountByEmail(email: string, password: string | nul
     }
 }
 
-export async function createEmailVerificationToken(email: string, prisma?: PrismaDBConnection): Promise<string> {
-    if (!prisma) {
-        prisma = prismaClient
-    }
+export async function createProfileByUsername(username: string, accountId: number, prisma: PrismaDBConnection = prismaClient): Promise<profile> {
+    return await prisma.profile.create({
+        data: {
+            account_id: accountId,
+            username: username
+        }
+    })
+}
+
+export async function createEmailVerificationToken(email: string, prisma: PrismaDBConnection = prismaClient): Promise<string> {
     const token = randToken()
     await prisma.verification.create({
         data: {
@@ -44,10 +56,7 @@ export async function createEmailVerificationToken(email: string, prisma?: Prism
     return token
 }
 
-export async function createOnetimeCsrfToken(prisma?: PrismaDBConnection): Promise<string> {
-    if (!prisma) {
-        prisma = prismaClient
-    }
+export async function createOnetimeCsrfToken(prisma: PrismaDBConnection = prismaClient): Promise<string> {
     const token = randToken()
     await prisma.verification.create({
         data: {
@@ -63,6 +72,11 @@ export async function verifyOnetimeCsrfToken(csrf: string): Promise<boolean> {
     return result.length > 0
 }
 
+export async function verifyOnetimeCsrfTokenInSession(csrf: string, sessionId: number): Promise<boolean> {
+    const result: Object[] = await prismaClient.$queryRaw`delete from verification where code = ${csrf} and session_id = ${sessionId} and type=${TOKEN_ONETIME_CSRF} returning id`
+    return result.length > 0
+}
+
 export async function getEmailVerificationToken(email: string, token: string): Promise<verification | null> {
     return await prismaClient.verification.findUnique({
         where: {
@@ -74,10 +88,7 @@ export async function getEmailVerificationToken(email: string, token: string): P
 
 }
 
-export async function deleteTokenById(id: number, prisma?: PrismaDBConnection) {
-    if (!prisma) {
-        prisma = prismaClient
-    }
+export async function deleteTokenById(id: number, prisma: PrismaDBConnection = prismaClient) {
     await prisma.verification.delete({
         where: { id: id }
     })
@@ -99,55 +110,44 @@ export async function findAccountById(id: number): Promise<account | null> {
     })
 }
 
-export async function findSessionCsrf(session_id: number): Promise<string | null> {
-    const verify = await prismaClient.verification.findFirst({
-        where: {
-            session_id: session_id,
-            type: TOKEN_SESSION_CSRF
-        },
-        orderBy: { created_at: 'desc' }
-    })
-    if (verify) {
-        return verify.code
-    }
-    return null
-}
-
-export async function getProfileByAccountId(account_id: number, prisma?: PrismaDBConnection): Promise<Profile | null> {
-    if (!prisma) {
-        prisma = prismaClient
-    }
-    const db_profile = await prisma.profile.findFirst({
+export async function getProfileByAccountId(account_id: number, prisma: PrismaDBConnection = prismaClient): Promise<Profile | null> {
+    const dbProfile = await prisma.profile.findFirst({
         where: {
             account_id: account_id,
         },
         orderBy: { created_at: 'desc' }
     })
-    if (!db_profile) {
+    if (!dbProfile) {
         return null
     }
     return {
-        id: db_profile.id,
-        countryCode: db_profile.country_code,
-        region: db_profile.region,
-        city: db_profile.city,
-        postcode: db_profile.postcode,
-        streetAddress: db_profile.street_address,
-        extendedAddress: db_profile.extended_address,
-        firstName: db_profile.first_name,
-        lastName: db_profile.last_name,
-        middleName: db_profile.middle_name,
-        photo: db_profile.photo,
-        updatedAt: db_profile.updated_at,
-        createdAt: db_profile.created_at
+        id: dbProfile.id,
+        countryCode: dbProfile.country_code,
+        region: dbProfile.region,
+        city: dbProfile.city,
+        postcode: dbProfile.postcode,
+        streetAddress: dbProfile.street_address,
+        extendedAddress: dbProfile.extended_address,
+        username: dbProfile.username,
+        photo: dbProfile.photo,
+        updatedAt: dbProfile.updated_at,
+        createdAt: dbProfile.created_at
     }
 }
 
-export async function getAllTags(): Promise<Tag[]> {
+export async function getTags(): Promise<Tag[]> {
     const db_tags = await prismaClient.tag.findMany()
     return db_tags.map(e => ({
         id: e.id,
         word: e.word,
         createdAt: e.created_at
+    }))
+}
+
+export async function getCountries(): Promise<Country[]> {
+    const dbCountries = await prismaClient.countries.findMany()
+    return dbCountries.map(item => ({
+        code: item.country_code,
+        name: item.country_name
     }))
 }

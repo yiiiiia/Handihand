@@ -4,22 +4,48 @@ import { googleOAuthClient } from "@/app/api/auth/[...action]/oauth"
 import { account } from "@prisma/client"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { z } from 'zod'
 import { prismaClient } from "../db/data-source"
 import { deleteSession, getSession, newSession } from "../session"
 import { randToken } from "../util"
 
-export async function signin(_preState: any, formData: FormData): Promise<string> {
-    let email = (<string>formData.get('email')).trim()
-    if (!email) {
-        return 'Email is required'
+export type SigninState = {
+    ok: boolean,
+    error: {
+        email?: string | undefined;
+        password?: string | undefined;
+        policy?: string | undefined;
     }
-    let password = (<string>formData.get('password')).trim()
-    if (!password) {
-        return 'Password is required'
+}
+
+const signinSchema = z.object({
+    email: z.string({ required_error: "Email is required" }).trim().min(1, { message: "Email must not be empty" }),
+    password: z.string({ required_error: "Password is required" }).trim().min(1, { message: "Password must not be empty" }),
+    policy: z.string({ required_error: "Agreement is required" }).refine(val => val === 'on', { message: 'Agreement to terms of services is mandatory' })
+})
+
+export async function emailSignin(_: SigninState | null, formData: FormData): Promise<SigninState> {
+    const value = {
+        email: formData.get('email') ?? undefined,
+        password: formData.get('password') ?? undefined,
+        policy: formData.get('policy') ?? undefined
     }
-    const accounts: account[] = await prismaClient.$queryRaw`select * from account where identity_type ='email' and identity_value = ${email} and crypt(${password}, password) = password;`
+    const parsedValue = signinSchema.safeParse(value)
+    if (!parsedValue.success) {
+        const err = parsedValue.error.format()
+        return {
+            ok: false,
+            error: {
+                email: err.email?._errors?.[0],
+                password: err.password?._errors?.[0],
+                policy: err.policy?._errors?.[0]
+            }
+        }
+    }
+
+    const accounts: account[] = await prismaClient.$queryRaw`select * from account where identity_type ='email' and identity_value = ${parsedValue.data.email} and crypt(${parsedValue.data.password}, password) = password;`
     if (accounts.length == 0) {
-        return "Account does not exist or password does not match"
+        return { ok: false, error: { password: "email doesn't exist or incorrect password" } }
     }
     await newSession(accounts[0].id)
     redirect('/')
@@ -27,7 +53,7 @@ export async function signin(_preState: any, formData: FormData): Promise<string
 
 
 // See: https://developers.google.com/identity/protocols/oauth2/web-server#redirecting
-export async function beginGoogleOAuthSignin() {
+export async function googleOAuthSignin() {
     const scopes = [
         'openid',
         'https://www.googleapis.com/auth/userinfo.profile',
@@ -58,12 +84,12 @@ export async function beginGoogleOAuthSignin() {
     redirect(authorizationUrl)
 }
 
-export async function purgeInvalidSession(): Promise<boolean> {
+export async function checkSessionConsistency(): Promise<boolean> {
     const session = await getSession()
     if (!session) {
         const sessionid = cookies().get('sessionid')
         if (sessionid) {
-            deleteSession()
+            cookies().delete('sessionid')
             return true
         }
     }

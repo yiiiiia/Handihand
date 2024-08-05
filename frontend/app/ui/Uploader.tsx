@@ -1,6 +1,6 @@
 'use client'
 
-import { recordUploadedVideo, VideoUploadRecord } from '@/lib/action/file_upload';
+import { recordUploadedVideo, VideoUploadRecord } from '@/lib/action/upload';
 import { hideUploader, selectShowUploader } from '@/lib/features/uploader/uploaderSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import { createUppy } from '@/lib/uppy';

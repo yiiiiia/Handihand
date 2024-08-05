@@ -1,9 +1,9 @@
 import { cookies } from "next/headers";
 import { prismaClient } from "./db/data-source";
 import { AccountIdentityType, AccountState, Nullable, Session } from "./db/entities";
+import { findAccountById, findSessionBySessionId, getProfileByAccountId } from "./db/query";
 import { logger } from "./logger";
 import { randToken } from './util';
-import { findAccountById, findSessionBySessionId, findSessionCsrf, getProfileByAccountId } from "./db/query";
 
 const duration = 7 * 24 * 60 * 60 * 1000
 
@@ -36,16 +36,15 @@ export async function getSession(): Promise<Nullable<Session>> {
         return null
     }
     if (Date.now() > session.expire_at.getTime()) {
-        // expired session
         return null
     }
+
     const account = await findAccountById(session.account_id)
     if (!account) {
         logger.error(`SYSTEM ERROR: account with id ${session.account_id} was recorded in session ${session.id}, but not found in db`)
         return null
     }
     const profile = await getProfileByAccountId(account.id)
-    const csrf = await findSessionCsrf(session.id)
     return {
         id: session.id,
         sessionid: session.session_id,
@@ -59,7 +58,6 @@ export async function getSession(): Promise<Nullable<Session>> {
         profile: profile,
         expireAt: session.created_at,
         createdAt: session.created_at,
-        csrf: csrf
     }
 }
 

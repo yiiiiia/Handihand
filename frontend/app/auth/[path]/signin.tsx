@@ -1,54 +1,69 @@
 'use client'
 
-import Spinner from '@/app/ui/Spinner';
+import BusyModal from '@/app/ui/BusyModal';
 import SubmitButton from '@/app/ui/SubmitButton';
-import { beginGoogleOAuthSignin, signin } from '@/lib/action/signin';
+import { emailSignin, googleOAuthSignin } from '@/lib/action/signin';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useFormState } from 'react-dom';
+import { FaRegUser } from "react-icons/fa";
+import { TiArrowBack } from "react-icons/ti";
+
+const undecided = 'undecided'
+const byEmail = "byEmail"
 
 export default function Signin() {
-    const [errMsg, formAction] = useFormState(signin, null)
-    const [showSpinner, setShowSpinner] = useState(false)
+    const [loginBy, setLoginBy] = useState(undecided)
+    const [redirecting, setRedirecting] = useState(false)
+    const [signinState, action] = useFormState(emailSignin, null)
+
+    function Main() {
+        if (loginBy === undecided) {
+            return (
+                <div className='flex flex-col gap-y-4 font-semibold'>
+                    <button className='relative w-80 h-14 p-4 border shadow-lg rounded-xl text-center text-base' onClick={() => setLoginBy(byEmail)}>
+                        <FaRegUser className="absolute top-1/2 transform -translate-y-1/2" size={30} />Use email
+                    </button>
+                    <button className="relative w-80 h-14 p-4 border shadow-lg rounded-xl text-center text-base" onClick={() => { setRedirecting(true); googleOAuthSignin() }}>
+                        <Image src="/google.svg" width={30} height={30} alt="Google-Icon" className="absolute top-1/2 transform -translate-y-1/2" />Log in with Google
+                    </button>
+                </div>
+            )
+        }
+        return (
+            <form action={action} className="relative flex flex-col justify-center gap-y-8 p-2 mt-16">
+                <div className='relative'>
+                    <label htmlFor='email' className='block'>Email</label>
+                    <input id='email' required type="email" name="email" className='border rounded-md w-full h-10 px-2' ></input>
+                    {signinState?.error?.email && <p className='text-sm ml-2 text-red-500 absolute -bottom-7'>{signinState.error.email}</p>}
+                </div>
+                <div className='relative'>
+                    <label htmlFor='password' className='block'>Password</label>
+                    <input id='password' required name="password" type="password" className='border rounded-md w-full h-10 px-2' ></input>
+                    {signinState?.error?.password && <p className='text-sm ml-2 text-red-500 absolute -bottom-7'>{signinState.error.password}</p>}
+                </div>
+                <div className="mt-10 relative">
+                    <input id="policy" required type="checkbox" name="policy" />
+                    <label htmlFor="policy" className="text-[14px] ml-4">I agree to the <a href="#" className='text-blue-600'>terms of service</a> and <a href="#" className='text-blue-500'>privacy policy</a></label>
+                    {signinState?.error?.policy && <p className='text-sm ml-2 text-red-500 absolute -bottom-7'>{signinState.error.policy}</p>}
+                </div>
+                <SubmitButton theme='mt-8 p-2 w-full rounded-md text-center text-lg bg-red-600 text-white' text='Log in' pendingText='Processing...' />
+                <TiArrowBack className='absolute top-0 right-0 transform translate-x-1/2 -translate-y-1/2 hover:cursor-pointer hover:scale-150' size={20} onClick={() => { setLoginBy(undecided); }} />
+            </form>
+        )
+    }
+
     return (
         <>
-            <div className="w-full min-h-screen bg-gray-50 flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
-                <div className="container w-full sm:max-w-md p-5 mx-auto">
-                    <h2 className="mb-12 text-center text-5xl font-extrabold">Welcome.</h2>
-                    <form action={formAction}>
-                        <div className="mb-4">
-                            <label className="block mb-1" htmlFor="email">Email</label>
-                            <input id="email" required type="email" name="email" className="py-2 px-3 border border-gray-300 focus:border-red-300 focus:outline-none focus:ring focus:ring-red-200 focus:ring-opacity-50 rounded-md shadow-sm disabled:bg-gray-100 mt-1 block w-full" />
-                        </div>
-                        <div className="mb-4">
-                            <label className="block mb-1" htmlFor="password">Password</label>
-                            <input id="password" required type="password" name="password" className="py-2 px-3 border border-gray-300 focus:border-red-300 focus:outline-none focus:ring focus:ring-red-200 focus:ring-opacity-50 rounded-md shadow-sm disabled:bg-gray-100 mt-1 block w-full" />
-                        </div>
-                        {errMsg && <p className="text-red-500 mb-2 text-sm pl-2">{errMsg}</p>}
-                        <div className="mt-6 flex items-center justify-between">
-                            <div className="flex items-center">
-                                <input id="remember" type="checkbox" name="remember" className="border border-gray-300 text-red-600 shadow-sm focus:border-red-300 focus:ring focus:ring-red-200 focus:ring-opacity-50" />
-                                <label htmlFor="remember" className="ml-2 block text-sm leading-5 text-gray-900">Remember me</label>
-                            </div>
-                            <a href="#" className="text-sm"> Forgot your password? </a>
-                        </div>
-                        <div className="mt-6">
-                            <SubmitButton theme='w-full inline-flex items-center justify-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold capitalize text-white hover:bg-red-700 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 disabled:opacity-25 transition' text='Sign In' />
-                        </div>
-                    </form>
-                    <div className="mt-6 text-center">
-                        <a href="/auth/signup" className="underline">Do not have an account yet? Sign Up</a>
-                    </div>
-                    <hr className="mt-5 h-0 w-full bg-gray-500" />
-                    <div className='flex flex-row justify-center'>
-                        <button className="mt-3 border-2 rounded-lg items-center justify-center inline-flex flex-row px-3 py-2 hover:bg-stone-100" onClick={() => { setShowSpinner(true); beginGoogleOAuthSignin() }}>
-                            <Image src="/google.svg" width={30} height={30} alt="Google-Icon" />
-                            <span className='grow font-semibold text-center px-2'>Sign in with Google</span>
-                        </button>
-                    </div>
+            <div className='relative grid place-content-center h-screen w-screen'>
+                <Main />
+                <div className="absolute bottom-0 left-1/2 transform -translate-y-36 -translate-x-1/2 text-center w-1/4">
+                    <hr className="border-gray-300 w-full mt-10" />
+                    <p className='mt-10'>Don&apos;t have an account? <Link href={"/auth/signup"} className='text-red-600 hover:cursor-pointer'>Sign up</Link></p>
                 </div>
             </div>
-            {showSpinner && <Spinner />}
+            {redirecting && <BusyModal />}
         </>
     )
 }
