@@ -5,7 +5,6 @@ import { ProfileUpdateResult } from "@/app/api/profile/route";
 import { CountryContext } from "@/app/CountryProvider";
 import { SessionContext } from "@/app/SessionProvider";
 import ImageUpload from "@/app/ui/ImageUpload";
-import SubmitButton from "@/app/ui/SubmitButton";
 import { Nullable } from "@/lib/db/entities";
 import { Fzf } from 'fzf';
 import Image from "next/image";
@@ -40,10 +39,11 @@ export default function Profile() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [fuzzyCountries, setFuzzyCountries] = useState<string[]>([])
     const [updateResult, setUpdateResult] = useState<ProfileUpdateResult>({ ok: true })
+    const [loading, setLoading] = useState(false)
 
     const fileInputRef = useRef<HTMLInputElement>(null)
     const countryInputRef = useRef<HTMLInputElement>(null)
-    const countryDivNodeRef = useRef<HTMLDivElement>(null)
+    const countryDivRef = useRef<HTMLDivElement>(null)
 
     function getImageURL(): string {
         if (dataUrl) {
@@ -67,7 +67,7 @@ export default function Profile() {
         setEditing(true)
     }
 
-    function onInputFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    function onInputFileChange(e: ChangeEvent<HTMLInputElement>) {
         if (e.target.files && e.target.files[0]) {
             setSelectedFile(e.target.files[0])
             e.target.value = ''
@@ -101,6 +101,7 @@ export default function Profile() {
 
     function onSubmit(e: FormEvent) {
         e.preventDefault()
+        setLoading(true)
         const form = e.target as HTMLFormElement
         const formData = new FormData(form)
         if (formData.get('country')) {
@@ -123,13 +124,14 @@ export default function Profile() {
                 if (data.ok) {
                     window.location.reload()
                 }
+                setLoading(false)
             })
     }
 
     useEffect(() => {
         const handleClickOutside = event => {
-            if (countryDivNodeRef.current && event.target) {
-                const div = countryDivNodeRef.current
+            if (countryDivRef.current && event.target) {
+                const div = countryDivRef.current
                 if (!div.contains(event.target as HTMLElement)) {
                     setFuzzyCountries([])
                 }
@@ -250,14 +252,14 @@ export default function Profile() {
                     <FieldEditor label="Country" name="country" placeholder={session?.profile?.countryName}
                         onChangeHandler={onInputCountryChange}
                         onFocusHandler={onInputCountryFocus}
-                        nodeRef={countryDivNodeRef}
+                        nodeRef={countryDivRef}
                         inputRef={countryInputRef}
                         fieldErr={updateResult?.error?.countryCode?.[0]}
                     >
-                        <div className="absolute top-0 left-0 ml-4 mt-4 transform translate-y-8 z-10 font-light h-80 overflow-auto">
+                        <div className="absolute top-0 left-0 ml-4 mt-4 transform translate-y-8 z-10 font-light h-80 overflow-auto bg-neutral-100 rounded-lg">
                             {
                                 fuzzyCountries.map(name => (
-                                    <a key={countryMap[name.toLowerCase()]} className="block hover:bg-blue-200 min-w-96 px-4 py-1 rounded-lg hover:cursor-pointer backdrop-blur-sm" onClick={onCountryItemClick}>{name}</a>
+                                    <a key={countryMap[name.toLowerCase()]} className="block hover:bg-blue-200 min-w-96 px-4 py-1 rounded-lg hover:cursor-pointer" onClick={onCountryItemClick}>{name}</a>
                                 ))
                             }
                         </div>
@@ -268,8 +270,17 @@ export default function Profile() {
                     <FieldEditor label="Street Address" name="streetAddress" placeholder={session?.profile?.streetAddress} fieldErr={updateResult?.error?.streetAddress?.[0]} />
                     <FieldEditor label="Extended Address" name="extendedAddress" placeholder={session?.profile?.extendedAddress} fieldErr={updateResult?.error?.extendedAddress?.[0]} />
                     <div className="self-end">
-                        <SubmitButton theme="p-2 bg-red-600 text-white w-32 rounded-lg" text="Submit" />
-                        <button type="button" className="p-2 ml-4 self-end bg-gray-300 w-32 rounded-lg" onClick={() => setEditing(false)}>Cancel</button>
+                        {
+                            !loading &&
+                            <>
+                                <button type="submit" className="p-2 bg-red-600 text-white w-32 rounded-lg" >Submit</button>
+                                <button className="p-2 ml-4 self-end bg-gray-300 w-32 rounded-lg" onClick={() => setEditing(false)}>Cancel</button>
+                            </>
+                        }
+                        {
+                            loading &&
+                            <button type="submit" disabled className="p-2 bg-red-300 text-white w-32 rounded-lg hover:cursor-not-allowed" >Processing...</button>
+                        }
                     </div>
                 </form>
             </div>
@@ -289,8 +300,7 @@ function FieldEditor({ label, name, placeholder, id = name, children, nodeRef, o
             <label htmlFor={id} className="text-lg w-48">{label}</label>
             <div className="relative">
                 <input ref={inputRef} id={id} name={name} type="text" defaultValue={placeholder ?? ''}
-                    className="py-2 px-4 ml-4 min-w-96 text-xl border rounded-xl focus:outline-none
-                     focus:underline focus:underline-offset-4 placeholder:text-gray-600 italic"
+                    className="py-2 px-4 ml-4 min-w-96 text-xl border rounded-xl focus:outline-none placeholder:text-gray-600"
                     onChange={onChangeHandler}
                     onBlur={onBlurHandler}
                     onFocus={onFocusHandler}>

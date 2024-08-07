@@ -58,12 +58,16 @@ export type Tag = {
 }
 
 export type Video = {
-    id: number | undefined;
-    url: string;
-    thumbnail: string;
-    account?: Account;
-    country: string;
+    id: number;
+    countryCode?: string;
+    title: string;
     description: string;
+    name?: string;
+    type?: string;
+    size?: number;
+    uploadURL: string;
+    thumbnailURL: string;
+    account?: Account;
     tags?: string[];
     createdAt?: Date;
 }

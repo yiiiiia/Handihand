@@ -287,10 +287,7 @@ CREATE TABLE public.video (
     name text NOT NULL,
     type text NOT NULL,
     size integer NOT NULL,
-    upload_id text,
-    assembly_id text,
     upload_url text,
-    ssl_url text,
     thumbnail_url text,
     updated_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL
@@ -582,20 +579,6 @@ CREATE INDEX idx_video_account_id ON public.video USING btree (account_id);
 --
 
 CREATE INDEX idx_video_country ON public.video USING btree (country_code);
-
-
---
--- Name: idx_video_ssl_url; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_video_ssl_url ON public.video USING btree (ssl_url);
-
-
---
--- Name: idx_video_thumbnail_url; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_video_thumbnail_url ON public.video USING btree (thumbnail_url);
 
 
 --

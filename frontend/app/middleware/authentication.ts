@@ -1,7 +1,7 @@
 import { COOKIE_SESSION } from '@/lib/util'
 import { NextRequest, NextResponse } from 'next/server'
 
-const sensitivePath = /^\/account\/\w+|^\/api\/upload$/
+const sensitivePath = /^\/account\/\w+|^\/api\/upload$|^\/api\/csrf$/
 
 const noExtraLoginPath = /^\/auth\/(signin|signup|verify)$/
 

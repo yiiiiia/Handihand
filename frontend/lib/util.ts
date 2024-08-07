@@ -26,37 +26,71 @@ export function visibleOnCondition(cond: boolean, baseTheme: string) {
     return baseTheme
 }
 
-// Function to get the URL of the object in google cloud bucket
-export function getBucketObjectPublicURL(bucketName: string, fileName: string) {
-    return `https://storage.googleapis.com/${bucketName}/${fileName}`;
+export function dataURLToBlob(dataURL: string): Blob {
+    // Split the data URL at the comma to separate the metadata from the base64 data
+    const [metadata, base64String] = dataURL.split(',');
+
+    // Decode the base64 string into binary data
+    const binaryString = atob(base64String);
+
+    // Convert binary data to an array of unsigned 8-bit integers
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Extract the MIME type from the metadata
+    const mimeType = metadata.split(':')[1].split(';')[0];
+
+    // Create a Blob from the binary data with the specified MIME type
+    return new Blob([bytes], { type: mimeType });
 }
 
 export function getFileExtension(mimeType: string): string {
-    if (!mimeType.startsWith('image/')) {
-        return ''
-    }
     const idx = mimeType.lastIndexOf('/')
     const format = mimeType.substring(idx + 1)
-    switch (format) {
-        case 'jpeg':
-            return 'jpg'
-        case 'png':
-            return 'png'
-        case 'gif':
-            return 'gif'
-        case 'bmp':
-            return 'bmp'
-        case 'webp':
-            return 'webp'
-        case 'tiff':
-            return 'tiff'
-        case 'svg+xml':
-            return 'svg'
-        case 'x-icon':
-            return 'ico'
-        case 'heic':
-            return 'heic'
-        default:
-            return ''
+    if (mimeType.startsWith('image')) {
+        switch (format) {
+            case 'jpeg':
+                return 'jpg'
+            case 'png':
+                return 'png'
+            case 'gif':
+                return 'gif'
+            case 'bmp':
+                return 'bmp'
+            case 'webp':
+                return 'webp'
+            case 'tiff':
+                return 'tiff'
+            case 'svg+xml':
+                return 'svg'
+            case 'x-icon':
+                return 'ico'
+            case 'heic':
+                return 'heic'
+            default:
+                return ''
+        }
     }
+    if (mimeType.startsWith('video')) {
+        switch (format) {
+            case 'x-msvideo':
+                return 'avi'
+            case 'mp4':
+                return 'mp4'
+            case 'mpeg':
+                return 'mpeg'
+            case 'ogg':
+                return 'ogv'
+            case 'mp2t':
+                return 'ts'
+            case 'webm':
+                return 'webm'
+            default:
+                return ''
+        }
+    }
+    return ''
 }

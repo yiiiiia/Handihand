@@ -99,18 +99,13 @@ model video {
   name          String
   type          String
   size          Int
-  upload_id     String?
-  assembly_id   String?
   upload_url    String?
-  ssl_url       String?
   thumbnail_url String?
   updated_at    DateTime? @db.Timestamptz(6)
   created_at    DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([account_id], map: "idx_video_account_id")
   @@index([country_code], map: "idx_video_country")
-  @@index([ssl_url], map: "idx_video_ssl_url")
-  @@index([thumbnail_url], map: "idx_video_thumbnail_url")
 }
 
 model video_tag {

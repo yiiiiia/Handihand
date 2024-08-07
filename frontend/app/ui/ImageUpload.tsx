@@ -45,7 +45,6 @@ export default function ImageUpload(opts: Options) {
     const eh = {
         exit: function () {
             setState(old => ({ ...old, status: 'exiting' }))
-            // fileRef.current = null
             dataUrlRef.current = null
             canvasRef.current = null
             setTimeout(() => {
@@ -103,33 +102,29 @@ export default function ImageUpload(opts: Options) {
             }
 
             setState(old => ({ ...old, status: 'uploading' }))
-            let blobToUpload = null
-            if (canvasRef.current) {
-                canvasRef.current.toBlob(async blob => {
-                    if (!blob) {
-                        throw new Error('no blob converting from a canvas!')
-                    }
-                    blobToUpload = blob
-                }, ext)
-            } else {
-                blobToUpload = opts.selectedFile
-            }
-
-            while (!blobToUpload) {
-                console.log('waiting for blob...')
-                await new Promise(resolve => {
-                    setTimeout(() => {
-                        resolve(1)
-                    }, 100)
-                })
-            }
-            const formData = new FormData()
-            formData.append('image', blobToUpload, opts.selectedFile.name)
-            await fetch('/api/upload/image', {
-                method: 'POST',
-                body: formData
+            const blobToUpload = await new Promise<Blob | null>(resolve => {
+                if (canvasRef.current) {
+                    canvasRef.current.toBlob(async blob => {
+                        if (!blob) {
+                            throw new Error('no blob converting from a canvas!')
+                        }
+                        resolve(blob)
+                    }, ext)
+                } else {
+                    resolve(opts.selectedFile)
+                }
             })
-            opts.onUploadComplete(dataUrlRef.current)
+            if (blobToUpload) {
+                const formData = new FormData()
+                formData.append('image', blobToUpload, opts.selectedFile.name)
+                await fetch('/api/upload/image', {
+                    method: 'POST',
+                    body: formData
+                })
+                opts.onUploadComplete(dataUrlRef.current)
+            } else {
+                throw new Error('no blob to upoad')
+            }
         }
     }
 
@@ -139,9 +134,9 @@ export default function ImageUpload(opts: Options) {
             setState(old => ({ ...old, status: 'loading' }))
             const reader = new FileReader()
             reader.readAsDataURL(opts.selectedFile)
-            reader.addEventListener('load', e1 => {
-                if (e1.target?.result) {
-                    dataUrlRef.current = e1.target.result as string
+            reader.addEventListener('load', le => {
+                if (le.target?.result) {
+                    dataUrlRef.current = le.target.result as string
                     setState(old => ({ ...old, status: 'loaded' }))
                 }
             })

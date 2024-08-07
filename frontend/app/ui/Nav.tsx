@@ -17,7 +17,6 @@ import { RiSearch2Line } from 'react-icons/ri';
 import { SessionContext } from '../SessionProvider';
 import BusyModal from './BusyModal';
 import Modal from './Modal';
-import Uploader from './Uploader';
 
 function DropList({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
     const session = useContext(SessionContext)
@@ -85,6 +84,8 @@ export default function Nav() {
     const openUploader = () => {
         if (!session) {
             setAlert({ show: true, type: 'signin' })
+        } else if (!session.profile || !session.profile.countryCode) {
+            setAlert({ show: true, type: 'complete_profile' })
         } else {
             dispatch(displayUploader())
         }
@@ -139,24 +140,46 @@ export default function Nav() {
             </nav>
             {
                 showAlert.show && showAlert.type === 'signin' &&
-                <Modal>
-                    <div className="mb-8">
-                        <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
-                        <p className="text-gray-600">Log in to enjoy most of the app</p>
+                <div className="fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-70 py-10">
+                    <div className="max-h-full max-w-7xl overflow-auto sm:rounded-2xl">
+                        <div className='grid place-content-center bg-white w-[30rem] h-[24rem]'>
+                            <div className="mb-8">
+                                <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
+                                <p className="text-gray-600">Log in to enjoy most of the app</p>
+                            </div>
+                            <div className="space-y-4">
+                                <Link href="/auth/signin">
+                                    <button className="p-3 bg-black rounded-full text-white w-full font-semibold" onClick={() => { setShowSpinner(true) }}>Log in</button>
+                                </Link>
+                                <button className="p-3 bg-gray-200 border rounded-full w-full font-semibold" onClick={() => { setAlert({ show: false }) }}>Skip for now</button>
+                            </div>
+                        </div>
                     </div>
-                    <div className="space-y-4">
-                        <Link href="/auth/signin">
-                            <button className="p-3 bg-black rounded-full text-white w-full font-semibold" onClick={() => { setShowSpinner(true) }}>Log in</button>
-                        </Link>
-                        <button className="p-3 bg-white border rounded-full w-full font-semibold" onClick={() => { setAlert({ show: false }) }}>Skip for now</button>
+                </div>
+            }
+            {
+                showAlert.show && showAlert.type === 'complete_profile' &&
+                <div className="fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-70 py-10">
+                    <div className="max-h-full max-w-7xl overflow-auto sm:rounded-2xl">
+                        <div className='grid place-content-center bg-white p-20'>
+                            <div className="mb-8">
+                                <h1 className="mb-4 text-3xl font-extrabold">You have incomplete profile</h1>
+                                <p className="text-gray-600">Please update your country information before uploading a video</p>
+                            </div>
+                            <div className="space-y-4">
+                                <Link href="/account/profile">
+                                    <button className="p-3 bg-black rounded-full text-white w-full font-semibold" onClick={() => { setShowSpinner(true) }}>To my profile</button>
+                                </Link>
+                                <button className="p-3 bg-gray-200 border rounded-full w-full font-semibold" onClick={() => { setAlert({ show: false }) }}>Skip for now</button>
+                            </div>
+                        </div>
                     </div>
-                </Modal>
+                </div>
             }
             {
                 showSpinner &&
                 <BusyModal />
             }
-            <Uploader />
         </>
     )
 }
