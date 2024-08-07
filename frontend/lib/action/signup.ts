@@ -2,15 +2,12 @@
 
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
-import { prismaClient } from '../db/data-source'
-import { createAccountByEmail, createEmailVerificationToken, createOnetimeCsrfToken, createProfileByUsername, findAccountByEmail, findProfilebyUsername, verifyOnetimeCsrfToken } from '../db/query'
-import { logger } from '../logger'
-import { sendVerificationEmail } from '../mail'
+import { createAccountByEmail, createEmailToken, createProfile, findAccountByEmail, findProfilebyUsername } from '../db/query'
+import { sendEmail } from '../mail'
 import { emailRegex } from '../util'
 
 type SignupState = {
     ok: boolean;
-    csrfToken?: string;
     error?: {
         username?: string[];
         email?: string[];
@@ -89,42 +86,17 @@ export async function signup(_: SignupState | null, formData: FormData): Promise
         throw new Error('"account_id" returned is not valid: ' + idObjectArray[0].id)
     }
 
-    await createProfileByUsername(username, idObjectArray[0].id)
-    const emailVerificationToken = await createEmailVerificationToken(email)
-    await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${emailVerificationToken}`)
-    const csrf = await createOnetimeCsrfToken()
-    redirect(`/auth/verify?email=${email}&csrf=${csrf}`)
+    const accountId = idObjectArray[0].id
+    await createProfile(username, accountId)
+    const emailToken = await createEmailToken(email)
+    await sendEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${emailToken}`)
+    redirect(`/auth/verify?email=${email}`)
 }
 
-export type ResendEmailResult = {
-    ok: boolean;
-    csrf: string;
-}
-
-export async function resendEmail(email: string, csrf: string): Promise<ResendEmailResult> {
-    if (!email || !csrf) {
+export async function resendEmail(email: string): Promise<void> {
+    if (!email) {
         redirect('/error')
     }
-    try {
-        const verifyResult = await verifyOnetimeCsrfToken(csrf)
-        if (!verifyResult) {
-            redirect('error')
-        }
-        const newCsrf = await prismaClient.$transaction(async (tx): Promise<string> => {
-            const newCsrf = await createOnetimeCsrfToken(tx)
-            const emailToken = await createEmailVerificationToken(email, tx)
-            await sendVerificationEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${emailToken}`)
-            return newCsrf
-        })
-        return {
-            ok: true,
-            csrf: newCsrf,
-        }
-    } catch (error) {
-        logger.error(`failed to resend email: ${error}`)
-        return {
-            ok: false,
-            csrf: ''
-        }
-    }
+    const emailToken = await createEmailToken(email)
+    await sendEmail('support@handihand.com', email, `${process.env.BASE_URL}/api/auth/callback?email=${email}&token=${emailToken}`)
 }

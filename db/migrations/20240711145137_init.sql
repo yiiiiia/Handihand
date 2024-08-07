@@ -34,7 +34,7 @@ create index IF NOT EXISTS idx_profile_country_code on profile using btree (coun
 
 CREATE TABLE if NOT EXISTS session (
   id SERIAL PRIMARY key,
-  session_id text NOT NULL UNIQUE,
+  session text NOT NULL UNIQUE,
   account_id int not null,
   expire_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ not null default now(),
@@ -61,13 +61,12 @@ CREATE TABLE if not EXISTS verification (
   id SERIAL PRIMARY key,
   email text,
   code text not null UNIQUE,
-  session_id int,
-  type text not null,
+  session text,
   created_at TIMESTAMPTZ not null default now(),
-  foreign key (session_id) REFERENCES session (id) on delete cascade
+  foreign key (session) REFERENCES session (session) on delete cascade
 );
 
-create index IF NOT EXISTS idx_verification_session_id on verification using btree (session_id);
+create index IF NOT EXISTS idx_verification_session on verification using btree (session);
 
 create index IF NOT EXISTS idx_verification_email on verification using btree (email);
 

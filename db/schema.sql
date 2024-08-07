@@ -63,6 +63,37 @@ ALTER SEQUENCE public.account_id_seq OWNED BY public.account.id;
 
 
 --
+-- Name: countries; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.countries (
+    id integer NOT NULL,
+    country_code character varying(2) NOT NULL,
+    country_name text NOT NULL
+);
+
+
+--
+-- Name: countries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.countries_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: countries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.countries_id_seq OWNED BY public.countries.id;
+
+
+--
 -- Name: oauth; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -152,7 +183,7 @@ CREATE TABLE public.schema_migrations (
 
 CREATE TABLE public.session (
     id integer NOT NULL,
-    session_id text NOT NULL,
+    session text NOT NULL,
     account_id integer NOT NULL,
     expire_at timestamp with time zone NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL
@@ -218,8 +249,7 @@ CREATE TABLE public.verification (
     id integer NOT NULL,
     email text,
     code text NOT NULL,
-    session_id integer,
-    type text NOT NULL,
+    session text,
     created_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
@@ -306,6 +336,13 @@ ALTER TABLE ONLY public.account ALTER COLUMN id SET DEFAULT nextval('public.acco
 
 
 --
+-- Name: countries id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.countries ALTER COLUMN id SET DEFAULT nextval('public.countries_id_seq'::regclass);
+
+
+--
 -- Name: oauth id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -364,6 +401,30 @@ ALTER TABLE ONLY public.account
 
 
 --
+-- Name: countries countries_country_code_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.countries
+    ADD CONSTRAINT countries_country_code_key UNIQUE (country_code);
+
+
+--
+-- Name: countries countries_country_name_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.countries
+    ADD CONSTRAINT countries_country_name_key UNIQUE (country_name);
+
+
+--
+-- Name: countries countries_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.countries
+    ADD CONSTRAINT countries_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: oauth oauth_identity_provider_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -412,11 +473,11 @@ ALTER TABLE ONLY public.session
 
 
 --
--- Name: session session_session_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: session session_session_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.session
-    ADD CONSTRAINT session_session_id_key UNIQUE (session_id);
+    ADD CONSTRAINT session_session_key UNIQUE (session);
 
 
 --
@@ -503,10 +564,10 @@ CREATE INDEX idx_verification_email ON public.verification USING btree (email);
 
 
 --
--- Name: idx_verification_session_id; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_verification_session; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_verification_session_id ON public.verification USING btree (session_id);
+CREATE INDEX idx_verification_session ON public.verification USING btree (session);
 
 
 --
@@ -569,11 +630,11 @@ ALTER TABLE ONLY public.session
 
 
 --
--- Name: verification verification_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: verification verification_session_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.verification
-    ADD CONSTRAINT verification_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.session(id) ON DELETE CASCADE;
+    ADD CONSTRAINT verification_session_fkey FOREIGN KEY (session) REFERENCES public.session(session) ON DELETE CASCADE;
 
 
 --

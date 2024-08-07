@@ -1,8 +1,8 @@
 import { prismaClient } from "@/lib/db/data-source"
 import { Profile, VERIFIED, WAIT_VERIFICATION } from "@/lib/db/entities"
-import { createAccountByEmail, createOnetimeCsrfToken, deleteTokenById, findAccountByEmail, getEmailVerificationToken } from "@/lib/db/query"
+import { createAccountByEmail, deleteToken, findAccountByEmail, getEmailToken } from "@/lib/db/query"
 import { logger } from "@/lib/logger"
-import { deleteSession, getSession, newSession } from "@/lib/session"
+import { deleteSession, newSession } from "@/lib/session"
 import { profile } from "@prisma/client"
 import { GaxiosResponse } from "gaxios"
 import { google, people_v1 } from 'googleapis'
@@ -10,6 +10,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { NextRequest } from "next/server"
 import { googleOAuthClient } from "./oauth"
+import { COOKIE_OAUTH_GOOGLE_STATE, COOKIE_SESSION } from "@/lib/util"
 
 export { handler as GET, handler as POST }
 
@@ -25,18 +26,19 @@ async function handler(request: NextRequest, { params }: { params: { action: str
     }
 }
 
-async function handleEmailCallback(request: NextRequest) {
-    const { searchParams } = new URL(request.url)
+async function handleEmailCallback(req: NextRequest) {
+    const { searchParams } = new URL(req.url)
     const email = searchParams.get('email')
     const token = searchParams.get('token')
     if (!email || !token) {
         redirect('/error')
     }
-    const dbToken = await getEmailVerificationToken(email, token)
+
+    const dbToken = await getEmailToken(email, token)
     if (!dbToken) {
         redirect('/not-found')
     }
-    await deleteTokenById(dbToken.id)
+    await deleteToken(dbToken.id)
 
     const validityPeriod = 5 * 60 * 1000
     const account = await findAccountByEmail(email)
@@ -47,10 +49,8 @@ async function handleEmailCallback(request: NextRequest) {
 
     const timePassed = Math.abs(Date.now() - dbToken.created_at.getTime())
     if (timePassed > validityPeriod && account.state === WAIT_VERIFICATION) {
-        // token has expired
-        const csrf = await createOnetimeCsrfToken()
         // redirect to the email verification page
-        redirect(`/auth/verify?email=${email}&expired=true&csrf=${csrf}`)
+        redirect(`/auth/verify?email=${email}&expired`)
     }
     if (account.state === WAIT_VERIFICATION) {
         await prismaClient.account.update({
@@ -65,16 +65,16 @@ async function handleEmailCallback(request: NextRequest) {
 }
 
 async function handleSignout() {
-    const session = await getSession()
-    if (session) {
-        deleteSession(session)
+    const sessionCookie = cookies().get(COOKIE_SESSION)
+    if (sessionCookie) {
+        deleteSession(sessionCookie.value)
     }
     redirect('/')
 }
 
-async function handleGoogleCallback(request: NextRequest) {
-    logger.info(`get Google OAuth callback: ${request.url}`)
-    const { searchParams } = new URL(request.url)
+async function handleGoogleCallback(req: NextRequest) {
+    logger.info(`get Google OAuth callback: ${req.url}`)
+    const { searchParams } = new URL(req.url)
     const err = searchParams.get('error')
     if (err) {
         logger.error(`Google OAuth 2.0 server response error: ${err}`)
@@ -85,7 +85,7 @@ async function handleGoogleCallback(request: NextRequest) {
         logger.error(`Google OAuth 2.0 server didn't respond with the state, Possible CSRF attack`)
         redirect('/error')
     }
-    const stateInCookie = cookies().get('oauth-google-state')
+    const stateInCookie = cookies().get(COOKIE_OAUTH_GOOGLE_STATE)
     if (!stateInCookie) {
         logger.error(`couldn't find the oauth state in cookie`)
         redirect('/error')

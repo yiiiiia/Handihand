@@ -2,46 +2,38 @@
 
 import { resendEmail } from "@/lib/action/signup";
 import Link from "next/link";
-import { notFound, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { notFound } from "next/navigation";
+import { useEffect, useState } from "react";
 import { IoCheckmark } from "react-icons/io5";
 import { LuShieldAlert } from "react-icons/lu";
 
 export default function VerifyEmail({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
-    const expired = searchParams['expired'] === 'true'
+    const expired = searchParams['expired']
     const paramEmail = searchParams['email'] as string
-    const paramCsrf = searchParams['csrf'] as string
-    if (!paramEmail || !paramCsrf || !paramEmail.trim() || !paramCsrf.trim()) {
+    if (!paramEmail.trim()) {
         notFound()
     }
 
     const email = paramEmail.trim()
-    const csrf = paramCsrf.trim()
     const [cooldown, setCooldown] = useState(0)
     const [resendProcessing, setResendProcessing] = useState(false)
-    const csrfRef = useRef(csrf)
-    const router = useRouter()
-    const cooldownTime = 3 // in second
+    const cooldownTime = 30 // in second
 
     const emailResendHandler = async () => {
         if (resendProcessing) {
             return
         }
         setResendProcessing(true)
-        const resendResult = await resendEmail(email, csrfRef.current)
-        if (!resendResult.ok) {
-            router.push('/error')
-        }
-        csrfRef.current = resendResult.csrf
+        await resendEmail(email)
         setCooldown(cooldownTime)
         setResendProcessing(false)
     }
 
     const resendClickable = () => {
         if (cooldown === 0) {
-            return <span className="text-red-700 hover:cursor-pointer" onClick={emailResendHandler}>Resend</span>
+            return <span className="text-red-700 hover:cursor-pointer text-base" onClick={emailResendHandler}>Resend</span>
         }
-        return <span className="text-gray-600 hover:cursor-not-allowed">Resend ({cooldown})</span>
+        return <span className="text-gray-600 hover:cursor-not-allowed text-base">Resend ({cooldown})</span>
     }
 
     useEffect(() => {

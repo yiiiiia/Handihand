@@ -3,7 +3,7 @@ import Signin from "./signin";
 import SignUp from "./signup";
 import VerifyEmail from "./verify";
 
-export default function Page({
+export default async function Page({
     params,
     searchParams,
 }: {

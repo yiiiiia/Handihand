@@ -6,8 +6,8 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { z } from 'zod'
 import { prismaClient } from "../db/data-source"
-import { deleteSession, getSession, newSession } from "../session"
-import { randToken } from "../util"
+import { getSession, newSession } from "../session"
+import { COOKIE_OAUTH_GOOGLE_STATE, COOKIE_SESSION, randToken } from "../util"
 
 export type SigninState = {
     ok: boolean,
@@ -24,7 +24,7 @@ const signinSchema = z.object({
     policy: z.string({ required_error: "Agreement is required" }).refine(val => val === 'on', { message: 'Agreement to terms of services is mandatory' })
 })
 
-export async function emailSignin(_: SigninState | null, formData: FormData): Promise<SigninState> {
+export async function signinByEmail(_: SigninState | null, formData: FormData): Promise<SigninState> {
     const value = {
         email: formData.get('email') ?? undefined,
         password: formData.get('password') ?? undefined,
@@ -64,10 +64,11 @@ export async function googleOAuthSignin() {
     // Generate a secure random state value.
     const state = randToken();
     // keep this state in cookie for later verification
-    cookies().set({
-        name: 'oauth-google-state',
-        value: state,
-        path: '/api/auth'
+    cookies().set(COOKIE_OAUTH_GOOGLE_STATE, state, {
+        path: '/api/auth',
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 5 * 60,
     })
     // Generate a url that asks permissions for the Drive activity scope
     const authorizationUrl = oauth2Client.generateAuthUrl({
@@ -87,9 +88,9 @@ export async function googleOAuthSignin() {
 export async function checkSessionConsistency(): Promise<boolean> {
     const session = await getSession()
     if (!session) {
-        const sessionid = cookies().get('sessionid')
-        if (sessionid) {
-            cookies().delete('sessionid')
+        const sessionCookie = cookies().get(COOKIE_SESSION)
+        if (sessionCookie) {
+            cookies().delete(COOKIE_SESSION)
             return true
         }
     }

@@ -17,7 +17,6 @@ import { RiSearch2Line } from 'react-icons/ri';
 import { SessionContext } from '../SessionProvider';
 import BusyModal from './BusyModal';
 import Modal from './Modal';
-import Spinner from './Spinner';
 import Uploader from './Uploader';
 
 function DropList({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
@@ -54,32 +53,6 @@ function DropList({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
             }
         </div>
     )
-}
-
-function SigninAlert({ show: visibility, setVisibility }: { show: boolean, setVisibility: (a: boolean) => void }) {
-    const [showSpinner, setShowSpinner] = useState(false)
-    const cancel = () => {
-        setVisibility(false)
-    }
-    if (visibility) {
-        return (
-            <>
-                <Modal>
-                    <div className="mb-8">
-                        <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
-                        <p className="text-gray-600">Log in to unlock most functionalities of the app</p>
-                    </div>
-                    <div className="space-y-4">
-                        <Link href="/auth/signin">
-                            <button className="p-3 bg-black rounded-full text-white w-full font-semibold" onClick={() => { setShowSpinner(true) }}>Log in</button>
-                        </Link>
-                        <button className="p-3 bg-white border rounded-full w-full font-semibold" onClick={cancel}>Skip for now</button>
-                    </div>
-                </Modal>
-                {showSpinner && <Spinner />}
-            </>
-        )
-    }
 }
 
 type Alert = {

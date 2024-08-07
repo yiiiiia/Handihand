@@ -2,20 +2,15 @@
 
 import Image from 'next/image';
 import Link from "next/link";
-import { useRouter } from 'next/navigation';
 import { useContext, useEffect, useRef, useState } from "react";
 import { GiHamburgerMenu } from "react-icons/gi";
 import { SessionContext } from "../SessionProvider";
 
 export default function AccountCenterLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-    const route = useRouter()
     const session = useContext(SessionContext)
-    if (!session) {
-        route.push('/')
-    }
-
     const [showDropList, setShowDropList] = useState(false)
     const rightCornerDivRef = useRef<HTMLDivElement>(null)
+
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (rightCornerDivRef.current && e.target) {

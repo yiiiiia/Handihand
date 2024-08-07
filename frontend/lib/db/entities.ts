@@ -1,15 +1,10 @@
 export const VERIFIED = "verified"
 export const WAIT_VERIFICATION = "wait_verification"
-export const TOKEN_VERIFY_EMAIL = 'verify_email'
-export const TOKEN_ONETIME_CSRF = 'onetime_csrf'
 export const EMAIL_AS_IDENTITY = 'email'
-
 
 export type AccountState = 'wait_verification' | 'verified'
 
 export type AccountIdentityType = 'email' | 'phone' | 'x/twitter' | 'github' | 'facebook' | 'apple' | 'amazon' | 'spotify'
-
-export type VerificationType = 'verify_email' | 'onetime_csrf'
 
 export type Nullable<T> = T | null | undefined
 
@@ -24,6 +19,7 @@ export type Account = {
 export type Profile = {
     id?: number | undefined;
     countryCode?: Nullable<string>;
+    countryName?: Nullable<string>;
     region?: Nullable<string>;
     city?: Nullable<string>;
     postcode?: Nullable<string>;
@@ -38,7 +34,7 @@ export type Profile = {
 
 export type Session = {
     id: number | undefined;
-    sessionid: string;
+    token: string;
     account: Nullable<Account>;
     profile: Nullable<Profile>;
     expireAt: Date;
@@ -53,15 +49,6 @@ export type Oauth = {
     provider?: string,
     account?: Nullable<Account>;
     createdAt?: Date;
-}
-
-export type Verification = {
-    id: number | undefined;
-    email?: Nullable<string>;
-    code: string;
-    session?: Nullable<Session>;
-    type: VerificationType;
-    createdAt: Date;
 }
 
 export type Tag = {

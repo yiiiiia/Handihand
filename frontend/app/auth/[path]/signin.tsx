@@ -2,7 +2,7 @@
 
 import BusyModal from '@/app/ui/BusyModal';
 import SubmitButton from '@/app/ui/SubmitButton';
-import { emailSignin, googleOAuthSignin } from '@/lib/action/signin';
+import { signinByEmail, googleOAuthSignin } from '@/lib/action/signin';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -15,8 +15,8 @@ const byEmail = "byEmail"
 
 export default function Signin() {
     const [loginBy, setLoginBy] = useState(undecided)
-    const [redirecting, setRedirecting] = useState(false)
-    const [signinState, action] = useFormState(emailSignin, null)
+    const [loading, setLoading] = useState(false)
+    const [signinState, action] = useFormState(signinByEmail, null)
 
     function Main() {
         if (loginBy === undecided) {
@@ -25,7 +25,7 @@ export default function Signin() {
                     <button className='relative w-80 h-14 p-4 border shadow-lg rounded-xl text-center text-base' onClick={() => setLoginBy(byEmail)}>
                         <FaRegUser className="absolute top-1/2 transform -translate-y-1/2" size={30} />Use email
                     </button>
-                    <button className="relative w-80 h-14 p-4 border shadow-lg rounded-xl text-center text-base" onClick={() => { setRedirecting(true); googleOAuthSignin() }}>
+                    <button className="relative w-80 h-14 p-4 border shadow-lg rounded-xl text-center text-base" onClick={() => { setLoading(true); googleOAuthSignin() }}>
                         <Image src="/google.svg" width={30} height={30} alt="Google-Icon" className="absolute top-1/2 transform -translate-y-1/2" />Log in with Google
                     </button>
                 </div>
@@ -63,7 +63,7 @@ export default function Signin() {
                     <p className='mt-10'>Don&apos;t have an account? <Link href={"/auth/signup"} className='text-red-600 hover:cursor-pointer'>Sign up</Link></p>
                 </div>
             </div>
-            {redirecting && <BusyModal />}
+            {loading && <BusyModal />}
         </>
     )
 }

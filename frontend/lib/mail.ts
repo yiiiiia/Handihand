@@ -26,7 +26,7 @@ const handlebarOptions = {
 
 transporter.use('compile', hbs(handlebarOptions))
 
-export async function sendVerificationEmail(from: string, to: string, confirmURL: string) {
+export async function sendEmail(from: string, to: string, confirmURL: string) {
     const mailOptions = {
         from: from,
         template: "email",
@@ -40,6 +40,5 @@ export async function sendVerificationEmail(from: string, to: string, confirmURL
         if (err) {
             logger.error('ERROR: sending email: receive error from server: ', err)
         }
-        logger.info('get email sending info: ', info)
     })
 }

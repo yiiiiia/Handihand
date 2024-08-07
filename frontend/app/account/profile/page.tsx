@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client'
 
+import { ProfileUpdateResult } from "@/app/api/profile/route";
 import { CountryContext } from "@/app/CountryProvider";
 import { SessionContext } from "@/app/SessionProvider";
 import ImageUpload from "@/app/ui/ImageUpload";
@@ -8,35 +10,36 @@ import { Nullable } from "@/lib/db/entities";
 import { Fzf } from 'fzf';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, ChangeEventHandler, FocusEventHandler, MouseEvent, RefObject, useContext, useEffect, useRef, useState } from "react";
+import { ChangeEvent, ChangeEventHandler, FocusEvent, FocusEventHandler, FormEvent, MouseEvent, RefObject, useContext, useEffect, useRef, useState } from "react";
 import { CiEdit } from "react-icons/ci";
 import { GoCheck } from "react-icons/go";
 import { RxCross2 } from "react-icons/rx";
 
-export default function ProfilePage() {
+export default function Profile() {
     const route = useRouter()
     const session = useContext(SessionContext)
     if (!session) {
         route.push('/error')
     }
+
     const countries = useContext(CountryContext)
-    if (!countries || countries.length === 0) {
-        route.push('/error')
+    if (countries?.length == 0) {
+        console.log("WARN: no countries fetched")
     }
     const countryList: string[] = []
     const countryMap: Record<string, string> = {}
     countries?.forEach(item => {
-        const countryName = item.name.toLowerCase()
-        countryMap[countryName] = item.code
+        const lowercaseCountryName = item.name.toLowerCase()
+        countryMap[lowercaseCountryName] = item.code
         countryList.push(item.name)
     })
     const fzf = new Fzf(countryList)
 
-    const [editing, setEditing] = useState(true)
+    const [editing, setEditing] = useState(false)
     const [dataUrl, setDataUrl] = useState<string>('')
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [showFuzzyFinding, setShowFuzzyFinding] = useState(false)
     const [fuzzyCountries, setFuzzyCountries] = useState<string[]>([])
+    const [updateResult, setUpdateResult] = useState<ProfileUpdateResult>({ ok: true })
 
     const fileInputRef = useRef<HTMLInputElement>(null)
     const countryInputRef = useRef<HTMLInputElement>(null)
@@ -59,29 +62,31 @@ export default function ProfilePage() {
         return <RxCross2 className="inline-block mx-4 text-red-500" />
     }
 
-    function fileOnChange(e: React.ChangeEvent<HTMLInputElement>) {
+    async function onEdit() {
+        await fetch('/api/csrf').catch(err => { console.log('failed to requets csrf:', err) })
+        setEditing(true)
+    }
+
+    function onInputFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         if (e.target.files && e.target.files[0]) {
             setSelectedFile(e.target.files[0])
             e.target.value = ''
         }
     }
 
-    function onCountryInputChange(e: ChangeEvent<HTMLInputElement>) {
+    function onInputCountryChange(e: ChangeEvent<HTMLInputElement>) {
         const value = e.target.value
         const entries = fzf.find(value)
         const items = entries.map(e => e.item)
         setFuzzyCountries(items)
     }
 
-    function onCountryInputFocus() {
-        if (!showFuzzyFinding) {
-            setShowFuzzyFinding(true)
-        }
-    }
-
-    function onCountryInputBlur() {
-        if (showFuzzyFinding) {
-            // setShowFuzzyFinding(false)
+    function onInputCountryFocus(e: FocusEvent) {
+        const ele = e.target as HTMLInputElement
+        if (ele.value) {
+            const entries = fzf.find(ele.value)
+            const items = entries.map(e => e.item)
+            setFuzzyCountries(items)
         }
     }
 
@@ -89,15 +94,44 @@ export default function ProfilePage() {
         const ele = e.target as HTMLElement
         if (countryInputRef.current) {
             countryInputRef.current.value = ele.innerText
+            setUpdateResult(old => ({ ...old, error: { ...old.error, countryCode: [] } }))
         }
-        setShowFuzzyFinding(false)
+        setFuzzyCountries([])
+    }
+
+    function onSubmit(e: FormEvent) {
+        e.preventDefault()
+        const form = e.target as HTMLFormElement
+        const formData = new FormData(form)
+        if (formData.get('country')) {
+            let country = formData.get('country') as string
+            country = country.toLowerCase()
+            if (!countryMap[country]) {
+                setUpdateResult({ ok: false, error: { countryCode: ['unknown country'] } })
+                return
+            }
+            formData.append('countryCode', countryMap[country])
+        }
+
+        fetch('/api/profile', {
+            method: 'POST',
+            body: formData,
+        })
+            .then(res => res.json())
+            .then((data: ProfileUpdateResult) => {
+                setUpdateResult(data)
+                if (data.ok) {
+                    window.location.reload()
+                }
+            })
     }
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
+        const handleClickOutside = event => {
             if (countryDivNodeRef.current && event.target) {
-                if (!countryDivNodeRef.current.contains(event.target as HTMLElement) && showFuzzyFinding) {
-                    setShowFuzzyFinding(false)
+                const div = countryDivNodeRef.current
+                if (!div.contains(event.target as HTMLElement)) {
+                    setFuzzyCountries([])
                 }
             }
         };
@@ -105,18 +139,18 @@ export default function ProfilePage() {
         return () => {
             document.removeEventListener('click', handleClickOutside);
         };
-    }, [countryDivNodeRef.current]);
+    }, []);
 
     if (!editing) {
         return (
             <div className="flex flex-row w-4/5 mx-auto mt-10">
-                <div className="flex flex-col w-1/4">
-                    <div className="flex flex-row rounded-3xl shadow-2xl">
-                        <div className="grid place-content-center p-4">
-                            <Image src={getImageURL()} height={100} width={100} alt="avatar" className="rounded-full" />
-                            <p className="text-lg text-center">{session?.profile?.username}</p>
+                <div className="flex flex-col">
+                    <div className="grid grid-cols-2 justify-center items-center rounded-3xl shadow-2xl">
+                        <div className="grid place-content-center py-4">
+                            <Image src={getImageURL()} height={80} width={80} alt="avatar" className="rounded-full" />
+                            <p className="text-lg text-center mt-4 overflow-y-auto">{session?.profile?.username}</p>
                         </div>
-                        <div className="grid place-content-center gap-y-2 p-8">
+                        <div className="grid place-content-center gap-y-2">
                             <div>
                                 <span className="block font-bold text-xl">10</span>
                                 <span className="text-sm">Videos</span>
@@ -139,15 +173,15 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex flex-col w-2/3 ml-20 px-4">
                     <h1 className="text-3xl font-semibold">About {session?.profile?.username}</h1>
-                    <button className="p-2 border border-black rounded-lg mt-4 w-32" onClick={() => setEditing(true)}>Edit profile</button>
+                    <button className="p-2 border border-black rounded-lg mt-4 w-32" onClick={onEdit}>Edit profile</button>
                     <div className="grid grid-cols-1 gap-y-8 mt-10 text-xl text-gray-900">
                         <p className="flex flex-row ">
                             <span className="w-1/2">Country</span>
                             {
-                                session?.profile?.countryCode && <span className="font-light italic">{session?.profile?.countryCode}</span>
+                                session?.profile?.countryName && <span className="font-light italic">{session?.profile?.countryName}</span>
                             }
                             {
-                                !session?.profile?.countryCode && <span className="font-light italic text-gray-400">information missing</span>
+                                !session?.profile?.countryName && <span className="font-light italic text-gray-400">information missing</span>
                             }
                         </p>
                         <p className="flex flex-row">
@@ -208,32 +242,35 @@ export default function ProfilePage() {
                     <div className="relative">
                         <Image src={getImageURL()} height={100} width={100} alt="avatar" className="rounded-full" />
                         <span className="absolute -right-2 -bottom-2 hover:cursor-pointer" onClick={() => { fileInputRef.current && fileInputRef.current.click() }}><CiEdit size={25} /></span>
-                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={fileOnChange} />
+                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onInputFileChange} />
                     </div>
                 </div>
-                <form className="flex flex-col gap-y-10 mt-2">
-                    <FieldEditor label="Username" name="username" placeholder={session?.profile?.username} />
-                    <FieldEditor label="Country" name="country" placeholder={session?.profile?.countryCode}
-                        onChangeHandler={onCountryInputChange}
-                        onFocusHandler={onCountryInputFocus}
-                        onBlurHandler={onCountryInputBlur}
+                <form className="flex flex-col gap-y-10 mt-2" onSubmit={onSubmit}>
+                    <FieldEditor label="Username" name="username" placeholder={session?.profile?.username} fieldErr={updateResult?.error?.username?.[0]} />
+                    <FieldEditor label="Country" name="country" placeholder={session?.profile?.countryName}
+                        onChangeHandler={onInputCountryChange}
+                        onFocusHandler={onInputCountryFocus}
                         nodeRef={countryDivNodeRef}
-                        inputRef={countryInputRef}>
+                        inputRef={countryInputRef}
+                        fieldErr={updateResult?.error?.countryCode?.[0]}
+                    >
                         <div className="absolute top-0 left-0 ml-4 mt-4 transform translate-y-8 z-10 font-light h-80 overflow-auto">
                             {
-                                showFuzzyFinding &&
                                 fuzzyCountries.map(name => (
                                     <a key={countryMap[name.toLowerCase()]} className="block hover:bg-blue-200 min-w-96 px-4 py-1 rounded-lg hover:cursor-pointer backdrop-blur-sm" onClick={onCountryItemClick}>{name}</a>
                                 ))
                             }
                         </div>
                     </FieldEditor>
-                    <FieldEditor label="Region" name="region" placeholder={session?.profile?.region} />
-                    <FieldEditor label="City" name="city" placeholder={session?.profile?.city} />
-                    <FieldEditor label="Postcode" name="postcode" placeholder={session?.profile?.postcode} />
-                    <FieldEditor label="Street Address" name="streetAddress" placeholder={session?.profile?.streetAddress} />
-                    <FieldEditor label="Extended Address" name="extendedAddress" placeholder={session?.profile?.extendedAddress} />
-                    <SubmitButton theme="p-2 self-end bg-red-600 text-white w-32 rounded-lg" text="Submit" />
+                    <FieldEditor label="Region" name="region" placeholder={session?.profile?.region} fieldErr={updateResult?.error?.region?.[0]} />
+                    <FieldEditor label="City" name="city" placeholder={session?.profile?.city} fieldErr={updateResult?.error?.city?.[0]} />
+                    <FieldEditor label="Postcode" name="postcode" placeholder={session?.profile?.postcode} fieldErr={updateResult?.error?.postcode?.[0]} />
+                    <FieldEditor label="Street Address" name="streetAddress" placeholder={session?.profile?.streetAddress} fieldErr={updateResult?.error?.streetAddress?.[0]} />
+                    <FieldEditor label="Extended Address" name="extendedAddress" placeholder={session?.profile?.extendedAddress} fieldErr={updateResult?.error?.extendedAddress?.[0]} />
+                    <div className="self-end">
+                        <SubmitButton theme="p-2 bg-red-600 text-white w-32 rounded-lg" text="Submit" />
+                        <button type="button" className="p-2 ml-4 self-end bg-gray-300 w-32 rounded-lg" onClick={() => setEditing(false)}>Cancel</button>
+                    </div>
                 </form>
             </div>
             <ImageUpload selectedFile={selectedFile} onUploadComplete={setDataUrl} />
@@ -241,17 +278,17 @@ export default function ProfilePage() {
     )
 }
 
-function FieldEditor({ label, name, placeholder, id = name, children, nodeRef, onChangeHandler, onFocusHandler, onBlurHandler, inputRef }:
+function FieldEditor({ label, name, placeholder, id = name, children, nodeRef, onChangeHandler, onFocusHandler, onBlurHandler, inputRef, fieldErr }:
     {
         label: string, name: string, placeholder: Nullable<string>, id?: string, children?: React.ReactNode, nodeRef?: RefObject<HTMLDivElement>,
         onChangeHandler?: ChangeEventHandler, onFocusHandler?: FocusEventHandler, onBlurHandler?: FocusEventHandler,
-        inputRef?: RefObject<HTMLInputElement>
+        inputRef?: RefObject<HTMLInputElement>, fieldErr?: string
     }) {
     return (
         <div ref={nodeRef} className="relative flex flex-row items-center">
             <label htmlFor={id} className="text-lg w-48">{label}</label>
             <div className="relative">
-                <input ref={inputRef} id={id} name={name} type="text" placeholder={placeholder ?? undefined}
+                <input ref={inputRef} id={id} name={name} type="text" defaultValue={placeholder ?? ''}
                     className="py-2 px-4 ml-4 min-w-96 text-xl border rounded-xl focus:outline-none
                      focus:underline focus:underline-offset-4 placeholder:text-gray-600 italic"
                     onChange={onChangeHandler}
@@ -259,6 +296,10 @@ function FieldEditor({ label, name, placeholder, id = name, children, nodeRef, o
                     onFocus={onFocusHandler}>
                 </input>
                 {children}
+                {
+                    fieldErr &&
+                    <p className="absolute top-12 left-4 text-red-500 px-2 py-1">{fieldErr}</p>
+                }
             </div>
         </div>
     )
