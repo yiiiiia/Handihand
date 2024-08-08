@@ -7,6 +7,7 @@ import { StatusCodes } from 'http-status-codes';
 import { notFound, redirect } from "next/navigation";
 import { NextRequest } from "next/server";
 import path from "path";
+import stream from 'stream';
 
 export { handler as GET, handler as POST };
 
@@ -18,112 +19,189 @@ const googleStorage = new Storage({
 })
 
 const imageFolder = 'image'
+
 const videoFolder = 'video'
+
+export type ImageUploadResult = {
+    imageURL: string
+}
+
+const globalUploadingResult: Record<string, boolean> = {}
 
 async function handler(req: NextRequest, { params }: { params: { action: string } }) {
     if (req.method === 'POST' && params.action === 'image') {
         return handleImageUpload(req)
     }
+
     if (req.method === 'POST' && params.action === 'video') {
+        // const checkToken = randToken()
+        // setTimeout(() => {
+        //     globalUploadingResult[checkToken] = true
+        // }, 2000)
+        // return Response.json({ checkToken })
         return handleVideoUpload(req)
+    }
+
+    if (req.method === 'GET' && params.action === 'check_status') {
+        const searchParams = req.nextUrl.searchParams
+        const token = searchParams.get('token')
+        if (!token) {
+            return new Response('', { status: StatusCodes.BAD_REQUEST })
+        }
+        if (globalUploadingResult[token]) {
+            delete globalUploadingResult[token]
+            return Response.json({ status: 'ok' })
+        }
+        return Response.json({ status: 'processing' })
     }
     notFound()
 }
 
 async function handleVideoUpload(req: NextRequest) {
     const session = await getSession()
-    if (!session || !session.account || !session.profile) {
-        logger.error(`incomplete session info: ${JSON.stringify(session)}`)
+    if (!session?.account?.id) {
+        logger.error(`missing account db id in session: ${session}`)
         redirect('/error')
     }
-    if (!session.account.id) {
-        logger.error(`no account db id`)
+    if (!session.profile) {
+        logger.error(`missing profile in session: ${session}`)
         redirect('/error')
     }
+
     const accountId = session.account.id
+    const countryCode = session.profile.countryCode ?? ''
+    const bucketName = process.env.GOOGLE_STORAGE_BUCKET_NAME
+    if (!bucketName) {
+        logger.error('env "GOOGLE_STORAGE_BUCKET_NAME" is missing')
+        redirect('/error')
+    }
 
     const formData = await req.formData()
+    const { badRequest, video, image, title, description, videoFileExtension, imageFileExtension } = videoUploadValidation(formData)
+    if (badRequest) {
+        return badRequest
+    }
+
+    const tags: string[] = []
+    formData.getAll('tags').forEach(item => {
+        tags.push(item as string)
+    })
+
+    const checkToken = randToken()
+    const asyncUpload = async () => {
+        const { videoDest, imageDest } = await uploadVedioImage(video, videoFileExtension, image, imageFileExtension)
+        await updateDatabase(accountId, countryCode, title, description, bucketName, video, videoDest, imageDest, tags)
+        globalUploadingResult[checkToken] = true
+    }
+    asyncUpload()
+
+    return Response.json({ checkToken })
+}
+
+function videoUploadValidation(formData: FormData) {
+    const badStatus = StatusCodes.BAD_REQUEST
     if (!formData) {
-        return new Response('', { status: StatusCodes.BAD_REQUEST })
+        return { badRequest: new Response('no form data', { status: badStatus }) }
     }
 
-    if (!formData.get('cover') || (typeof formData.get('cover')) !== 'object') {
-        return new Response('no cover image', { status: StatusCodes.BAD_REQUEST })
+    const fieldImage = formData.get('image')
+    if (!fieldImage || (typeof fieldImage) !== 'object') {
+        return { badRequest: new Response('no image', { status: badStatus }) }
     }
-    const coverImage = formData.get('cover') as File
-    if (!coverImage.type.startsWith("image/")) {
-        return new Response('no cover image', { status: StatusCodes.BAD_REQUEST })
+    const image = fieldImage as File
+    if (!image.type.startsWith("image/")) {
+        return { badRequest: new Response('no image', { status: badStatus }) }
+    }
+    const imageFileExtension = getFileExtension(image.type)
+    if (!imageFileExtension) {
+        return { badRequest: new Response(`unsupported image type ${image.type}`, { status: badStatus }) }
     }
 
-    if (!formData.get('video') || (typeof formData.get('video')) !== 'object') {
-        return new Response('no video file', { status: StatusCodes.BAD_REQUEST })
+    const fieldVideo = formData.get('video')
+    if (!fieldVideo || (typeof fieldVideo) !== 'object') {
+        return { badRequest: new Response('no video', { status: badStatus }) }
     }
     const video = formData.get('video') as File
     if (!video.type.startsWith("video/")) {
-        return new Response('no video file', { status: StatusCodes.BAD_REQUEST })
+        return { badRequest: new Response('no video', { status: badStatus }) }
+    }
+    const videoFileExtension = getFileExtension(video.type)
+    if (!videoFileExtension) {
+        return { badRequest: new Response(`unsupported video type ${video.type}`, { status: badStatus }) }
     }
 
     const description = formData.get('description') as string
     if (!description || !description.trim()) {
-        return new Response('description is required', { status: StatusCodes.BAD_REQUEST })
-    }
-    const title = formData.get('title') as string
-    if (!title || !title.trim()) {
-        return new Response('title is required', { status: StatusCodes.BAD_REQUEST })
+        return { badRequest: new Response('description is required', { status: badStatus }) }
     }
 
+    const title = formData.get('title') as string
+    if (!title || !title.trim()) {
+        return { badRequest: new Response('title is required', { status: badStatus }) }
+    }
+
+    return { video, image, title, description, videoFileExtension, imageFileExtension }
+}
+
+async function uploadVedioImage(video: File, videoExt: string, image: File, imageExt: string) {
     const bucketName = process.env.GOOGLE_STORAGE_BUCKET_NAME
     if (!bucketName) {
         throw new Error('env "GOOGLE_STORAGE_BUCKET_NAME" is missing')
     }
-    const gb = googleStorage.bucket(bucketName)
-
-    // save video
-    const videoExt = getFileExtension(video.type)
-    if (!videoExt) {
-        logger.error(`failed to get video file extension for type: ${video.type}`)
-        return new Response('unsupported video file', { status: StatusCodes.BAD_REQUEST })
-    }
-    const videoDest = getDestFileLocation(videoFolder, video.name, videoExt)
-    const videoArrayBuf = await video.arrayBuffer()
-    const videoBuf = Buffer.from(videoArrayBuf)
-    await gb.file(videoDest).save(videoBuf)
-
-    // save cover iamge
-    const imageExt = getFileExtension(coverImage.type)
-    if (!imageExt) {
-        logger.error(`failed to get image file extension for type: ${coverImage.type}`)
-        return new Response('unsupported image file', { status: StatusCodes.BAD_REQUEST })
-    }
+    const bucket = googleStorage.bucket(bucketName)
+    const videoDestFileName = getDestFileLocation(videoFolder, video.name, videoExt)
     let coverImageName = ''
     if (video.name.lastIndexOf('.') === -1) {
         coverImageName = video.name + "-coverimage"
     } else {
         coverImageName = video.name.substring(0, video.name.lastIndexOf('.')) + '-coveriamge'
     }
-    const imageDest = getDestFileLocation(imageFolder, coverImageName, imageExt)
-    const imageArrayBug = await video.arrayBuffer()
-    const imageBuf = Buffer.from(imageArrayBug)
-    await gb.file(imageDest).save(imageBuf)
+    const imageDestFileName = getDestFileLocation(imageFolder, coverImageName, imageExt)
 
-    logger.info(`successfully uploaded vedio and image file to: ${videoDest} and ${imageDest}`)
+    const videoArrayBuf = await video.arrayBuffer()
+    const videoBuffer = Buffer.from(videoArrayBuf)
+    const passThroughVideoStream = new stream.PassThrough()
+    passThroughVideoStream.write(videoBuffer)
+    passThroughVideoStream.end()
 
+    const imageArrayBuf = await image.arrayBuffer()
+    const imageBuffer = Buffer.from(imageArrayBuf)
+    const passThroughImageStream = new stream.PassThrough()
+    passThroughImageStream.write(imageBuffer)
+    passThroughImageStream.end()
+
+    await new Promise<void>(resolve => {
+        passThroughVideoStream.pipe(bucket.file(videoDestFileName).createWriteStream())
+            .on('finish', () => {
+                logger.info(`successfully uploaded vedio to: ${videoDestFileName}`)
+                resolve()
+            })
+    })
+    await new Promise<void>(resolve => {
+        passThroughImageStream.pipe(bucket.file(imageDestFileName).createWriteStream())
+            .on('finish', () => {
+                logger.info(`successfully uploaded image to: ${imageDestFileName}`)
+                resolve()
+            })
+    })
+    return { videoDest: videoDestFileName, imageDest: imageDestFileName }
+}
+
+async function updateDatabase(accountId: number, countryCode: string, title: string, description: string, bucketName: string, video: File, videoDestFileName: string, imageDestFileName: string, tags: string[]) {
     const dbVideo = await prismaClient.video.create({
         data: {
             account_id: accountId,
-            country_code: session.profile.countryCode,
+            country_code: countryCode,
             title: title,
             description: description,
             name: video.name,
             type: video.type,
             size: video.size,
-            upload_url: getBucketObjectPublicURL(bucketName, videoDest),
-            thumbnail_url: getBucketObjectPublicURL(bucketName, imageDest),
+            upload_url: getBucketObjectPublicURL(bucketName, videoDestFileName),
+            thumbnail_url: getBucketObjectPublicURL(bucketName, imageDestFileName),
             updated_at: new Date()
         }
     })
-
-    const tags = formData.getAll('tag')
     tags.forEach(async e => {
         const word = e as string
         const dbTag = await prismaClient.tag.findUnique({ where: { word: word } })
@@ -138,11 +216,6 @@ async function handleVideoUpload(req: NextRequest) {
             logger.warn('got unknown tag: ${word}')
         }
     })
-    return new Response()
-}
-
-export type ImageUploadResult = {
-    imageURL: string
 }
 
 async function handleImageUpload(req: Request) {
@@ -213,5 +286,6 @@ function getDestFileLocation(folderPath: string, filename: string, extension: st
 
 // Function to get the URL of the object in google cloud bucket
 export function getBucketObjectPublicURL(bucketName: string, fileName: string) {
-    return `https://storage.googleapis.com/${bucketName}/${fileName}`;
+    const raw = `https://storage.googleapis.com/${bucketName}/${fileName}`;
+    return encodeURI(raw)
 }

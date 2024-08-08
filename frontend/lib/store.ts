@@ -1,12 +1,11 @@
 import type { Action, ThunkAction } from "@reduxjs/toolkit";
 import { combineSlices, configureStore } from "@reduxjs/toolkit";
-import { searchSlice } from "./features/search/searchSlice";
-import { sessionSlice } from "./features/session/sessionSlice";
 import { uploaderSlice } from "./features/uploader/uploaderSlice";
+import { videoSlice } from "./features/videos/videoSlice";
 
 // `combineSlices` automatically combines the reducers using
 // their `reducerPath`s, therefore we no longer need to call `combineReducers`.
-const rootReducer = combineSlices(searchSlice, uploaderSlice, sessionSlice);
+const rootReducer = combineSlices(uploaderSlice, videoSlice);
 // Infer the `RootState` type from the root reducer
 export type RootState = ReturnType<typeof rootReducer>;
 

@@ -50,7 +50,7 @@ export default function Tags({ tags }: { tags: Tag[] }) {
                 {
                     <>
                         {tags.map((e, index) => {
-                            return <span ref={ele => { refCallback(ele, index) }} key={index} className="bg-sky-200 p-3 text-sm text-nowrap rounded-xl">{e.word}</span>
+                            return <span ref={ele => { refCallback(ele, index) }} key={index} className="p-3 text-sm text-nowrap rounded-xl border">{e.word}</span>
                         })}
                     </>
                 }

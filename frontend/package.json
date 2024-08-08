@@ -24,6 +24,7 @@
     "@uppy/thumbnail-generator": "^4.0.0",
     "@uppy/transloadit": "^4.0.0",
     "@uppy/webcam": "^4.0.0",
+    "axios": "^1.7.3",
     "classnames": "^2.5.1",
     "express-handlebars": "^7.1.3",
     "formidable": "v3",

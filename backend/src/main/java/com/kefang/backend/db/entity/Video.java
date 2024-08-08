@@ -22,10 +22,7 @@ public class Video {
     private String name;
     private String type;
     private Integer size;
-    private String uploadId;
-    private String assemblyId;
     private String uploadUrl;
-    private String sslUrl;
     private String thumbnailUrl;
     private Date updatedAt;
     private Date createdAt;
@@ -34,8 +31,7 @@ public class Video {
     }
 
     public Video(long id, long accountId, String countryCode, String title, String description, String name,
-            String type, Integer size, String uploadId, String assemblyId, String uploadUrl,
-            String sslUrl, String thumbnailUrl, Date updatedAt, Date createdAt) {
+            String type, Integer size, String uploadUrl, String thumbnailUrl, Date updatedAt, Date createdAt) {
         this.id = id;
         this.accountId = accountId;
         this.countryCode = countryCode;
@@ -44,10 +40,7 @@ public class Video {
         this.name = name;
         this.type = type;
         this.size = size;
-        this.uploadId = uploadId;
-        this.assemblyId = assemblyId;
         this.uploadUrl = uploadUrl;
-        this.sslUrl = sslUrl;
         this.thumbnailUrl = thumbnailUrl;
         this.updatedAt = updatedAt;
         this.createdAt = createdAt;
@@ -117,36 +110,12 @@ public class Video {
         this.size = size;
     }
 
-    public String getUploadId() {
-        return uploadId;
-    }
-
-    public void setUploadId(String uploadId) {
-        this.uploadId = uploadId;
-    }
-
-    public String getAssemblyId() {
-        return assemblyId;
-    }
-
-    public void setAssemblyId(String assemblyId) {
-        this.assemblyId = assemblyId;
-    }
-
     public String getUploadUrl() {
         return uploadUrl;
     }
 
     public void setUploadUrl(String uploadUrl) {
         this.uploadUrl = uploadUrl;
-    }
-
-    public String getSslUrl() {
-        return sslUrl;
-    }
-
-    public void setSslUrl(String sslUrl) {
-        this.sslUrl = sslUrl;
     }
 
     public String getThumbnailUrl() {

@@ -62,12 +62,12 @@ export type Video = {
     countryCode?: string;
     title: string;
     description: string;
+    profile: Profile;
     name?: string;
     type?: string;
     size?: number;
     uploadURL: string;
     thumbnailURL: string;
-    account?: Account;
     tags?: string[];
     createdAt?: Date;
 }

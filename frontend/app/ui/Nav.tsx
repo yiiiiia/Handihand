@@ -1,11 +1,12 @@
 'use client'
 
 import { checkSessionConsistency } from '@/lib/action/signin';
-import { selectSearchBy, toogleSearchBy } from '@/lib/features/search/searchSlice';
-import { displayUploader } from '@/lib/features/uploader/uploaderSlice';
+import { Country } from '@/lib/db/entities';
+import { displayUploader, selectShowUploader } from '@/lib/features/uploader/uploaderSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import '@uppy/core/dist/style.min.css';
 import '@uppy/dashboard/dist/style.min.css';
+import { Fzf } from 'fzf';
 import Image from 'next/image';
 import Link from 'next/link';
 import { MutableRefObject, useContext, useEffect, useRef, useState } from 'react';
@@ -14,45 +15,13 @@ import { FaUserCircle } from 'react-icons/fa';
 import { GiHamburgerMenu } from 'react-icons/gi';
 import { MdVideoLibrary } from 'react-icons/md';
 import { RiSearch2Line } from 'react-icons/ri';
+import { CountryContext } from '../CountryProvider';
 import { SessionContext } from '../SessionProvider';
 import BusyModal from './BusyModal';
-import Modal from './Modal';
-
-function DropList({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
-    const session = useContext(SessionContext)
-    const [showDropList, setShowDropList] = useState(false)
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (nodeRef.current && !nodeRef.current.contains(event.target)) {
-                setShowDropList(false)
-            } else {
-                setShowDropList(true)
-            }
-        };
-        document.addEventListener('click', handleClickOutside, true);
-        return () => {
-            document.removeEventListener('click', handleClickOutside, true);
-        };
-    }, [nodeRef]);
-    return (
-        <div className={"absolute right-0 z-10 w-40 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none mt-2 " + (showDropList ? 'visible ' : 'invisible ')} tabIndex={-1}>
-            {
-                !session &&
-                <div className="py-2">
-                    <a href="/auth/signin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Sign up / Log in</a>
-                </div>
-            }
-            {
-                session &&
-                <div className="py-2">
-                    <a href="/account/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account</a>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
-                    <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
-                </div>
-            }
-        </div>
-    )
-}
+import VideoUpload from './VideoUpload';
+import axios from 'axios';
+import { StatusCodes } from 'http-status-codes';
+import { setVideos } from '@/lib/features/videos/videoSlice';
 
 type Alert = {
     show: boolean,
@@ -60,14 +29,32 @@ type Alert = {
 }
 
 export default function Nav() {
-    const [_, setHasInvalidSession] = useState(false)
+    const dispatch = useAppDispatch()
+    const showUploader = useAppSelector(selectShowUploader)
+    const session = useContext(SessionContext)
+
+    const [_, setSessionPruge] = useState(false)
+    const [searchBy, setSearchBy] = useState('video')
     const [showAlert, setAlert] = useState<Alert>({ show: false })
     const [showSpinner, setShowSpinner] = useState(false)
-    const upperRightCornerRef = useRef<HTMLDivElement>(null)
+    const [fuzzyCountries, setFuzzyCountries] = useState<Country[]>([])
 
-    const dispatch = useAppDispatch()
-    const searchBy = useAppSelector(selectSearchBy)
-    const session = useContext(SessionContext)
+    const upperRightCornerRef = useRef<HTMLDivElement>(null)
+    const countryInputRef = useRef<HTMLInputElement>(null)
+    const keywordInputRef = useRef<HTMLInputElement>(null)
+
+    const countries = useContext(CountryContext)
+    if (countries?.length == 0) {
+        console.log("WARN: no countries fetched")
+    }
+    const countryList: string[] = []
+    const countryMap: Record<string, Country> = {}
+    countries?.forEach(item => {
+        const lowercaseCountryName = item.name.toLowerCase()
+        countryMap[lowercaseCountryName] = item
+        countryList.push(item.name)
+    })
+    const fzf = new Fzf(countryList)
 
     const getCategoryTheme = (catetory: string): string => {
         const base = "rounded-full hover:cursor-pointer px-5 py-2"
@@ -76,25 +63,77 @@ export default function Nav() {
         }
         return base + " text-gray-400 hover:text-gray-500 hover:bg-gray-200 hover:font-normal"
     }
-    const switchSearchBy = (catetory: string): void => {
-        if (catetory !== searchBy) {
-            dispatch(toogleSearchBy())
-        }
-    }
-    const openUploader = () => {
-        if (!session) {
-            setAlert({ show: true, type: 'signin' })
-        } else if (!session.profile || !session.profile.countryCode) {
-            setAlert({ show: true, type: 'complete_profile' })
-        } else {
-            dispatch(displayUploader())
+
+    const eh = {
+        switchSearchBy: (catetory: string): void => {
+            if (catetory !== searchBy) {
+                setSearchBy(catetory)
+            }
+        },
+
+        openUploader: () => {
+            if (!session) {
+                setAlert({ show: true, type: 'signin' })
+            } else if (!session.profile || !session.profile.countryCode) {
+                setAlert({ show: true, type: 'complete_profile' })
+            } else {
+                dispatch(displayUploader())
+            }
+        },
+
+        onCountrySearch: (e: React.ChangeEvent<HTMLInputElement>) => {
+            const val = e.target.value
+            const entries = fzf.find(val)
+            const items = entries.map(e => {
+                const name = e.item.toLowerCase()
+                return countryMap[name]
+            })
+            setFuzzyCountries(items)
+        },
+
+        onCountryItemClicked: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            const ele = e.target as HTMLElement
+            if (countryInputRef.current) {
+                countryInputRef.current.value = ele.innerText
+                setFuzzyCountries([])
+            }
+        },
+
+        onSerach: () => {
+            if (!countryInputRef.current || !keywordInputRef.current) {
+                console.log('country input or keyword input reference missing')
+                return
+            }
+            const countryName = countryInputRef.current.value
+            const keyword = keywordInputRef.current.value
+            const countryObj = countryMap[countryName.toLowerCase()]
+            if (!countryObj) {
+                console.log("unknown country:", countryName)
+                return
+            }
+
+            axios.get('/api/video', {
+                params: {
+                    searchBy: searchBy,
+                    countryCode: countryObj.code,
+                    keyword: keyword,
+                    page: 1,
+                    size: 20
+                }
+            }).then(res => {
+                if (res.status === StatusCodes.OK) {
+                    if (res.data) {
+                        dispatch(setVideos(res.data))
+                    }
+                }
+            })
         }
     }
 
     useEffect(() => {
         checkSessionConsistency().then(purged => {
             if (purged) {
-                setHasInvalidSession(true)
+                setSessionPruge(true)
             }
         })
     }, [])
@@ -105,23 +144,35 @@ export default function Nav() {
                 <Image src="/logo.png" width={180} height={180} alt="Logo" className='absolute top-4 left-0' />
                 <div className='flex flex-col items-center'>
                     <div className='relative flex flex-row mt-2'>
-                        <button className={getCategoryTheme('video')} onClick={() => { switchSearchBy('video') }} >Videos</button>
-                        <button className={getCategoryTheme('product')} onClick={() => { switchSearchBy('product') }} >Products</button>
+                        <button className={getCategoryTheme('video')} onClick={() => { eh.switchSearchBy('video') }} >Videos</button>
+                        <button className={getCategoryTheme('product')} onClick={() => { eh.switchSearchBy('product') }} >Products</button>
                     </div>
                     <div className="relative flex flex-row border rounded-full shadow-lg text-sm mt-2">
-                        <button className='flex flex-col rounded-full hover:bg-gray-200 py-2 pl-8 w-72'>
+                        <button className='flex flex-col rounded-full hover:bg-gray-200 py-2 pl-8 w-72 relative'>
                             <label className=''>Where</label>
-                            <input type='text' placeholder="Search countries" className='focus:outline-none rounded-full bg-transparent' />
+                            <div className='relative'>
+                                <input ref={countryInputRef} type='text' placeholder="Search countries" className='focus:outline-none rounded-full bg-transparent' onChange={eh.onCountrySearch} />
+                                {
+                                    fuzzyCountries.length > 0 &&
+                                    <div className='absolute top-0 left-0 transform translate-y-8 -translate-x-6 z-10 font-light max-h-[40rem] w-[14rem] overflow-auto bg-neutral-50 rounded-sm py-2'>
+                                        {
+                                            fuzzyCountries.map(country => {
+                                                return <a key={country.code} href='#' className='block rounded-lg hover:bg-blue-200 hover:cursor-pointer' onClick={eh.onCountryItemClicked}>{country.name}</a>
+                                            })
+                                        }
+                                    </div>
+                                }
+                            </div>
                         </button>
                         <button className='relative flex flex-col rounded-full hover:bg-gray-200 py-2 pl-8 w-72'>
                             <label className=''>What</label>
-                            <input type='text' placeholder="Search keywords" className='focus:outline-none rounded-full bg-transparent' />
+                            <input ref={keywordInputRef} type='text' placeholder="Search keywords" className='focus:outline-none rounded-full bg-transparent' />
                         </button>
-                        <RiSearch2Line size={40} className='absolute right-2 top-2 rounded-full text-white bg-rose-500 py-2 hover:cursor-pointer hover:bg-rose-800' />
+                        <RiSearch2Line size={40} className='absolute right-2 top-2 rounded-full text-white bg-rose-500 py-2 hover:cursor-pointer hover:bg-rose-800' onClick={eh.onSerach} />
                     </div>
                 </div>
                 <div className='flex flex-row gap-x-4 justify-start items-center absolute top-4 right-4'>
-                    <button className="flex flex-row items-center px-4 py-2 rounded-lg bg-rose-500" onClick={openUploader}>
+                    <button className="flex flex-row items-center px-4 py-2 rounded-lg bg-rose-500" onClick={eh.openUploader}>
                         <MdVideoLibrary size={24} />
                         <span className="text-sm text-white pl-2">Upload</span>
                     </button>
@@ -132,7 +183,7 @@ export default function Nav() {
                     <div ref={upperRightCornerRef} className="relative inline-block text-left ml-5">
                         <button className="relative flex flex-row gap-x-2 border-2 px-2 rounded-full items-center hover:shadow-md hover:cursor-pointer">
                             <GiHamburgerMenu size={18} />
-                            {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" className='rounded-full' /> : <FaUserCircle size={30} className='m-1' />}
+                            {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" className='rounded-full p-1' /> : <FaUserCircle size={30} className='p-1' />}
                         </button>
                         <DropList nodeRef={upperRightCornerRef} />
                     </div>
@@ -180,6 +231,46 @@ export default function Nav() {
                 showSpinner &&
                 <BusyModal />
             }
+            {
+                showUploader &&
+                <VideoUpload />
+            }
         </>
+    )
+}
+
+function DropList({ nodeRef }: { nodeRef: MutableRefObject<any> }) {
+    const session = useContext(SessionContext)
+    const [showDropList, setShowDropList] = useState(false)
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (nodeRef.current && !nodeRef.current.contains(event.target)) {
+                setShowDropList(false)
+            } else {
+                setShowDropList(true)
+            }
+        };
+        document.addEventListener('click', handleClickOutside, true);
+        return () => {
+            document.removeEventListener('click', handleClickOutside, true);
+        };
+    }, [nodeRef]);
+    return (
+        <div className={"absolute right-0 z-10 w-40 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none mt-2 " + (showDropList ? 'visible ' : 'invisible ')} tabIndex={-1}>
+            {
+                !session &&
+                <div className="py-2">
+                    <a href="/auth/signin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Sign up / Log in</a>
+                </div>
+            }
+            {
+                session &&
+                <div className="py-2">
+                    <a href="/account/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account</a>
+                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
+                    <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
+                </div>
+            }
+        </div>
     )
 }

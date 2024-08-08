@@ -2,16 +2,12 @@ package com.kefang.backend;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.logging.log4j.util.Strings;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +18,6 @@ import com.kefang.backend.db.entity.Account;
 import com.kefang.backend.db.entity.Video;
 import com.kefang.backend.db.repository.AccountRepository;
 import com.kefang.backend.db.repository.VideoRepository;
-import com.kefang.backend.job.UpdateVideoJob;
-import com.kefang.backend.transloadit.TransloaditClient;
-import com.transloadit.sdk.exceptions.LocalOperationException;
-import com.transloadit.sdk.exceptions.RequestException;
-import com.transloadit.sdk.response.AssemblyResponse;
 
 @SpringBootTest
 class AppTest {
@@ -38,9 +29,6 @@ class AppTest {
 
 	@Autowired
 	private VideoRepository videoRepository;
-
-	@Autowired
-	private UpdateVideoJob videoUrlUpdate;
 
 	@Test
 	void testLoadContext() {
@@ -60,35 +48,9 @@ class AppTest {
 	}
 
 	@Test
-	void testTransloadit() {
-		TransloaditClient transloadit = TransloaditClient.gTransloaditClient();
-		try {
-			AssemblyResponse assembly = transloadit.getAssembly("4a1b7f973c824cdd9c72bba8135a07e1");
-			assertEquals(assembly.getId(), "4a1b7f973c824cdd9c72bba8135a07e1");
-			String sslUrl = assembly.getSslUrl();
-			assertTrue(Strings.isNotBlank(sslUrl));
-			JSONArray thumbnailResult = assembly.getStepResult("video-thumbnail");
-			assertTrue(thumbnailResult.length() > 0);
-			JSONObject thumbnailStep = thumbnailResult.getJSONObject(0);
-			System.out.println("Thumbnail Url: " + thumbnailStep.getString("ssl_url"));
-		} catch (RequestException | LocalOperationException e) {
-			fail("Unexpected exception: ", e);
-		}
-	}
-
-	@Test
 	void testGetVideoWithEmptySSLUrl() {
 		List<Video> videos = videoRepository.findVideosWithEmptySSLUrl();
 		assertTrue(videos.size() >= 0);
-	}
-
-	@Test
-	void testRunVideoUpdateOnce() {
-		try {
-			videoUrlUpdate.fetchAndUpdateUrl();
-		} catch (Exception e) {
-			fail("unexpected exception: ", e);
-		}
 	}
 
 	@Test
