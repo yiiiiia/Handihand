@@ -1,4 +1,4 @@
-import { createAppSlice } from "@/lib/util";
+import { createAppSlice } from "@/lib/createAppSlice";
 
 export interface UploaderSliceState {
     showUploader: boolean

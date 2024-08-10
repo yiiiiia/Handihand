@@ -306,7 +306,7 @@ export default function VideoUpload() {
                 }, 1000)
             }
         }
-    }, [inCountdown, countdownTime])
+    }, [inCountdown, countdownTime, dispatch])
 
     return (
         <>

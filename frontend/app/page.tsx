@@ -10,9 +10,7 @@ export default async function Home() {
       <Nav />
       <hr />
       <div className="p-5 flex flex-col">
-        <div>
-          <Tags tags={tags} />
-        </div>
+        <Tags tags={tags} />
         <div className="mt-6 px-6">
           <Cards />
         </div>

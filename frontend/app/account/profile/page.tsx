@@ -6,6 +6,7 @@ import { CountryContext } from "@/app/CountryProvider";
 import { SessionContext } from "@/app/SessionProvider";
 import ImageUpload from "@/app/ui/ImageUpload";
 import { Nullable } from "@/lib/db/entities";
+import { useGetUploadedVideosQuery } from "@/lib/features/searcher/searcher";
 import { Fzf } from 'fzf';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,8 @@ export default function Profile() {
         route.push('/error')
     }
 
+    const { data: numOfUploadedVideos } = useGetUploadedVideosQuery()
+
     const countries = useContext(CountryContext)
     if (countries?.length == 0) {
         console.log("WARN: no countries fetched")
@@ -32,7 +35,6 @@ export default function Profile() {
         countryMap[lowercaseCountryName] = item.code
         countryList.push(item.name)
     })
-    const fzf = new Fzf(countryList)
 
     const [editing, setEditing] = useState(false)
     const [dataUrl, setDataUrl] = useState<string>('')
@@ -44,6 +46,7 @@ export default function Profile() {
     const fileInputRef = useRef<HTMLInputElement>(null)
     const countryInputRef = useRef<HTMLInputElement>(null)
     const countryDivRef = useRef<HTMLDivElement>(null)
+    const fzf = new Fzf(countryList)
 
     function getImageURL(): string {
         if (dataUrl) {
@@ -154,12 +157,12 @@ export default function Profile() {
                         </div>
                         <div className="grid place-content-center gap-y-2">
                             <div>
-                                <span className="block font-bold text-xl">10</span>
+                                <span className="block font-bold text-xl">{numOfUploadedVideos?.number}</span>
                                 <span className="text-sm">Videos</span>
                             </div>
                             <hr className="border-gray-400" />
                             <div>
-                                <span className="block font-bold text-xl">10</span>
+                                <span className="block font-bold text-xl">0</span>
                                 <span className="text-sm">Products</span>
                             </div>
                         </div>

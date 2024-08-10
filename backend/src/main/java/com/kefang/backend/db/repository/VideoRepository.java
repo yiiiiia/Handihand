@@ -16,15 +16,15 @@ import jakarta.transaction.Transactional;
 public interface VideoRepository extends CrudRepository<Video, Long> {
   public static final String longQuery = """
       with filtered_videos as  (
-        select v.* from video v where upload_url is not null and thumbnail_url is not null and (:countryCode is null or :countryCode = country_code) and (:keyword is null or to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')) @@ plainto_tsquery(:keyword))
+        select v.* from video v where upload_url is not null and thumbnail_url is not null and (:countryCode is null or :countryCode = '' or :countryCode = country_code) and (:keyword is null or :keyword = '' or to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '')) @@ plainto_tsquery(:keyword))
       ) , video_tags as (
         select vt.video_id, vt.tag_id from video_tag vt join filtered_videos fv on vt.video_id = fv.id
       ) , video_agg_tags as (
         select video_id, array_agg(tag_id) tag_ids from  video_tags group by video_id
       ), filtered_video_ids as (
-        select video_id from video_agg_tags where :tagIdList ::integer[] is null or array_length(:tagIdList ::integer[], 1) = 0 or :tagIdList ::integer[] && tag_ids
+        select video_id from video_agg_tags where :tagIdList ::integer[] is null or array_length(:tagIdList ::integer[], 1) is null or :tagIdList ::integer[] && tag_ids
       )
-      select fv.* from filtered_videos fv join filtered_video_ids fvi on fv.id = fvi.video_id order by fv.created_at desc;
+      select fv.* from filtered_videos fv join filtered_video_ids fvi on fv.id = fvi.video_id order by fv.created_at desc limit :pageSize offset :skip;
                               """;
 
   @Query(value = "select * from video where ssl_url is null order by created_at", nativeQuery = true)
@@ -37,6 +37,10 @@ public interface VideoRepository extends CrudRepository<Video, Long> {
       @Param(value = "thumbnailUrl") String thumbnailUrl, @Param(value = "id") long id);
 
   @Query(value = longQuery, nativeQuery = true)
-  List<Video> findVideosByCondition(@Param("countryCode") String countryCode, @Param("keyword") String keyword,
-      @Param("tagIdList") List<String> tagIdList);
+  List<Video> findVideosByCondition(
+      @Param("countryCode") String countryCode,
+      @Param("keyword") String keyword,
+      @Param("tagIdList") Integer[] tagIdList,
+      @Param("pageSize") Integer pageSize,
+      @Param("skip") Integer skip);
 }

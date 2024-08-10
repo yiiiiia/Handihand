@@ -85,7 +85,7 @@ export async function googleOAuthSignin() {
     redirect(authorizationUrl)
 }
 
-export async function checkSessionConsistency(): Promise<boolean> {
+export async function PurgeInvalidSession(): Promise<boolean> {
     const session = await getSession()
     if (!session) {
         const sessionCookie = cookies().get(COOKIE_SESSION)

@@ -1,11 +1,11 @@
 'use client'
 
-import { Country, Nullable } from "@/lib/db/entities";
+import { Country } from "@/lib/db/entities";
 import { createContext } from "react";
 
-export const CountryContext = createContext<Nullable<Country[]>>(null)
+export const CountryContext = createContext<Country[]>([])
 
-export default function CountryProvider({ countries, children }: { countries: Nullable<Country[]>, children: React.ReactNode }) {
+export default function CountryProvider({ countries, children }: { countries: Country[], children: React.ReactNode }) {
     return (
         <CountryContext.Provider value={countries}>
             {children}

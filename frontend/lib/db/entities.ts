@@ -59,17 +59,17 @@ export type Tag = {
 
 export type Video = {
     id: number;
-    countryCode?: string;
     title: string;
     description: string;
     profile: Profile;
+    createdAt: Date;
+    countryCode?: string;
     name?: string;
     type?: string;
     size?: number;
     uploadURL: string;
     thumbnailURL: string;
     tags?: string[];
-    createdAt?: Date;
 }
 
 export type Country = {

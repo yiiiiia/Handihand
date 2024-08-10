@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 @Entity
 @Table(name = "video")
@@ -26,6 +27,8 @@ public class Video {
     private String thumbnailUrl;
     private Date updatedAt;
     private Date createdAt;
+    @Transient
+    private Profile profile;
 
     public Video() {
     }
@@ -141,4 +144,13 @@ public class Video {
     public void setCreatedAt(Date createdAt) {
         this.createdAt = createdAt;
     }
+
+    public Profile getProfile() {
+        return profile;
+    }
+
+    public void setProfile(Profile profile) {
+        this.profile = profile;
+    }
+
 }

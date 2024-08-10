@@ -3,7 +3,6 @@ package com.kefang.backend;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -56,8 +55,9 @@ class AppTest {
 	@Test
 	void testSearchVideoByCondition() {
 		String countryCode = null;
-		@SuppressWarnings("unchecked")
-		List<Video> videos = videoRepository.findVideosByCondition(countryCode, "knitting", Collections.EMPTY_LIST);
+		Integer[] emptyArray = new Integer[0];
+		List<Video> videos = videoRepository.findVideosByCondition(countryCode, "knitting", emptyArray, 1,
+				20);
 		assertEquals(videos.size(), 1);
 	}
 }
