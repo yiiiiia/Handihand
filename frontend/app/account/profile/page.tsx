@@ -22,7 +22,7 @@ export default function Profile() {
         route.push('/error')
     }
 
-    const { data: numOfUploadedVideos } = useGetUploadedVideosQuery()
+    const { data: getNumOfUploadedVideosResp } = useGetUploadedVideosQuery()
 
     const countries = useContext(CountryContext)
     if (countries?.length == 0) {
@@ -157,7 +157,7 @@ export default function Profile() {
                         </div>
                         <div className="grid place-content-center gap-y-2">
                             <div>
-                                <span className="block font-bold text-xl">{numOfUploadedVideos?.number}</span>
+                                <span className="block font-bold text-xl">{getNumOfUploadedVideosResp?.number}</span>
                                 <span className="text-sm">Videos</span>
                             </div>
                             <hr className="border-gray-400" />

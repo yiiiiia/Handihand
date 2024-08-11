@@ -106,14 +106,52 @@ create table if not exists video_tag (
   video_id int not null,
   tag_id int not null,
   created_at TIMESTAMPTZ not null default now(),
-  PRIMARY key (video_id, tag_id)
+  PRIMARY key (video_id, tag_id),
+  foreign key (video_id) REFERENCES video (id) on delete cascade,
+  foreign key (tag_id) REFERENCES tag (id) on delete cascade
 );
 
-CREATE TABLE countries (
+CREATE TABLE if not exists countries (
   id SERIAL PRIMARY KEY,
   country_code VARCHAR(2) NOT NULL UNIQUE,
   country_name TEXT NOT NULL UNIQUE
 );
+
+CREATE TABLE if not exists likes (
+  account_id int NOT NULL,
+  video_id int NOT NULL,
+  created_at TIMESTAMPTZ not null default now(),
+  foreign key (account_id) REFERENCES account (id) on delete cascade,
+  foreign key (video_id) REFERENCES video (id) on delete cascade,
+  UNIQUE(account_id, video_id)
+);
+
+CREATE TABLE if not exists saves (
+  account_id int NOT NULL,
+  video_id int NOT NULL,
+  created_at TIMESTAMPTZ not null default now(),
+  foreign key (account_id) REFERENCES account (id) on delete cascade,
+  foreign key (video_id) REFERENCES video (id) on delete cascade,
+  UNIQUE(account_id, video_id)
+);
+
+CREATE TABLE if not exists comments (
+  id SERIAL PRIMARY KEY,
+  account_id int NOT NULL,
+  video_id int,
+  comment_id int,
+  comment text not null,
+  created_at TIMESTAMPTZ not null default now(),
+  foreign key (account_id) REFERENCES account (id) on delete cascade,
+  foreign key (video_id) REFERENCES video (id) on delete cascade,
+  foreign key (comment_id) REFERENCES comments (id) on delete cascade
+);
+
+create index if not exists idx_comments_account_id on comments using btree (account_id);
+
+create index if not exists idx_comments_video_id on comments using btree (video_id);
+
+create index if not exists idx_comments_comment_id on comments using btree (comment_id);
 
 -- migrate:down
 DROP TABLE if EXISTS verification;

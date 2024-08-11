@@ -1,6 +1,11 @@
+/**
+ * This file provides the video uploading functionality
+ */
+
 'use client'
 
 import { Tag } from "@/lib/db/entities";
+import { useGetTagsQuery } from "@/lib/features/searcher/searcher";
 import { hideUploader } from "@/lib/features/uploader/uploaderSlice";
 import { useAppDispatch } from "@/lib/hooks";
 import { dataURLToBlob, getFileExtension } from "@/lib/util";
@@ -24,8 +29,6 @@ const thumbnailWidth = 500
 type Phase = 0 | 1 | 2 | 3 | 4
 
 export default function VideoUpload() {
-    const dispatch = useAppDispatch()
-    const [tags, setTags] = useState<Tag[]>([])
     const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null)
     const [generatedCoverDataURL, setGeneratedCoverDataURL] = useState('')
     const [selectedCover, setSelectedCover] = useState<File | null>(null)
@@ -42,17 +45,24 @@ export default function VideoUpload() {
     const [uploadPercentage, setUploadPercentage] = useState(0)
     const [countdownTime, setCountdownTime] = useState(2)
     const [inCountdown, setInCountdown] = useState(false)
+    const [uploadErr, setUploadErr] = useState({ phase: 0, errmsg: '' })
 
     const videoFileInputRef = useRef<HTMLInputElement>(null)
     const imageFileInputRef = useRef<HTMLInputElement>(null)
     const categoryInputRef = useRef<HTMLInputElement>(null)
     const categoryInputDivRef = useRef<HTMLDivElement>(null)
+    const mainAeraRef = useRef<HTMLDivElement>(null)
+    const dispatch = useAppDispatch()
 
+    const { data: tags = [] } = useGetTagsQuery()
     const tagMap: Record<string, Tag> = {}
-    const tagList = tags.map(t => t.word)
-    tags.forEach(t => {
-        tagMap[t.word.toLowerCase()] = t
-    })
+    const tagList: string[] = []
+    if (tags) {
+        tags.forEach(tag => {
+            tagMap[tag.word.toLowerCase()] = tag
+            tagList.push(tag.word)
+        })
+    }
 
     const convertDuration = (dur: number): string => {
         if (dur <= 0) {
@@ -122,6 +132,8 @@ export default function VideoUpload() {
                 }
                 return
             }
+
+            console.log('tag input change tagsLists', tagList)
 
             const source = tagList.filter(tag => {
                 const selectedWords = selectedTags.map(t => t.word)
@@ -195,6 +207,10 @@ export default function VideoUpload() {
             }
         },
 
+        onCancel: () => {
+            dispatch(hideUploader())
+        },
+
         onFormSubmit: async (e: React.FormEvent) => {
             e.preventDefault()
             if (phase > 1) {
@@ -249,31 +265,34 @@ export default function VideoUpload() {
             }
 
             setPhase(2)
-            const res = await axios.post('/api/upload/video', formData, {
+            const uploadRes = await axios.post('/api/upload/video', formData, {
                 onUploadProgress: (e: AxiosProgressEvent) => {
                     const { loaded, total } = e
                     if (total) {
                         let percentage = Math.floor((loaded * 100) / total);
                         setUploadPercentage(percentage)
+                        if (percentage === 100) {
+                            setPhase(3)
+                        }
                     }
                 },
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
             })
-            if (res.status !== StatusCodes.OK) {
-                throw new Error('ERROR: video up load failed')
+            if (uploadRes.status !== StatusCodes.OK) {
+                setUploadErr({ phase: 2, errmsg: 'failed to upload video' })
+                return
             }
-
-            setPhase(3)
-            if (res.data.checkToken) {
+            if (uploadRes.data.checkToken) {
                 while (true) {
                     // check upload status every 3 second
-                    const getResp = await axios.get('/api/upload/check_status', { params: { token: res.data.checkToken } })
-                    if (getResp.status !== StatusCodes.OK) {
-                        throw new Error('failed to check upload status')
+                    const checkRes = await axios.get('/api/upload/check_status', { params: { token: uploadRes.data.checkToken } })
+                    if (checkRes.status !== StatusCodes.OK) {
+                        setUploadErr({ phase: 3, errmsg: 'failed to poll uplaod processing status' })
+                        break
                     }
-                    if (getResp.data.status === 'ok') {
+                    if (checkRes.data.status === 'ok') {
                         setPhase(4)
                         setInCountdown(true)
                         break
@@ -281,20 +300,12 @@ export default function VideoUpload() {
                     await new Promise<void>(rev => {
                         setTimeout(() => {
                             rev()
-                        }, 1000)
+                        }, 3000)
                     })
                 }
             }
         }
     }
-
-    useEffect(() => {
-        axios.get('/api/tags').then(res => {
-            if (res.data.tags) {
-                setTags(res.data.tags)
-            }
-        })
-    }, [])
 
     useEffect(() => {
         if (inCountdown) {
@@ -308,13 +319,27 @@ export default function VideoUpload() {
         }
     }, [inCountdown, countdownTime, dispatch])
 
+    useEffect(() => {
+        const handleClickDocument = (e: MouseEvent) => {
+            if (mainAeraRef.current && e.target) {
+                if (!mainAeraRef.current.contains(e.target as HTMLElement) && phase === 0) {
+                    dispatch(hideUploader())
+                }
+            }
+        }
+        document.addEventListener('click', handleClickDocument, true)
+        return () => {
+            document.removeEventListener('click', handleClickDocument, true);
+        };
+    }, [dispatch, phase])
+
     return (
         <>
             {
                 phase === 0 &&
-                <div className="fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-50 py-10 z-10">
+                <div className="fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-50 py-10 z-10 transition-opacity duration-1000 opacity-100">
                     <div className="max-h-full max-w-7xl overflow-auto sm:rounded-2xl">
-                        <div className="grid place-content-center bg-gray-100 rounded-xl min-w-[64rem] min-h-[40rem]">
+                        <div ref={mainAeraRef} className="grid place-content-center bg-gray-100 rounded-xl min-w-[64rem] min-h-[40rem]">
                             <div className="flex flex-col justify-center items-center space-y-4">
                                 <FaCloudArrowUp size={80} className="text-gray-500" />
                                 <p className="font-semibold text-xl">Select video to upload</p>
@@ -410,7 +435,10 @@ export default function VideoUpload() {
                                             <RxCrossCircled size={20} className="absolute top-2 left-2 hover:cursor-pointer" onClick={() => { setChooseCover(false) }} />
                                         </div>
                                     }
-                                    <button className="absolute bottom-0 right-0 py-2 px-4 bg-red-600 text-white rounded-lg">Submit</button>
+                                    <div className="flex flex-row absolute bottom-0 right-0 gap-x-2">
+                                        <button type="submit" className="py-2 px-4 bg-red-600 text-white rounded-lg">Submit</button>
+                                        <button type="button" className="py-2 px-4 bg-gray-600 text-white rounded-lg" onClick={eh.onCancel}>Cancel</button>
+                                    </div>
                                 </div>
                             </form>
                         }

@@ -159,3 +159,21 @@ export async function getCountries(): Promise<Country[]> {
         name: item.country_name
     }))
 }
+
+export async function getNumberOfLikes(videoId: number): Promise<number> {
+    const result: any[] = await prismaClient.$queryRaw`select count(1) from likes where video_id = ${videoId}`
+    if (!result) {
+        return 0
+    }
+    const countN = result[0].count as BigInt
+    return parseInt(countN.toString())
+}
+
+export async function getNumberOfSaves(videoId: number): Promise<number> {
+    const result: any[] = await prismaClient.$queryRaw`select count(1) from saves where video_id = ${videoId}`
+    if (!result) {
+        return 0
+    }
+    const countN = result[0].count as BigInt
+    return parseInt(countN.toString())
+}

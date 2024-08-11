@@ -27,7 +27,7 @@ export default function AccountCenterLayout({ children }: Readonly<{ children: R
         return () => {
             document.removeEventListener('click', handleClickOutside, true);
         };
-    }, []);
+    }, [showDropList]);
 
     return (
         <div className="mx-auto h-dvh w-10/12 3xl:w-2/3">

@@ -63,12 +63,13 @@ export type Video = {
     description: string;
     profile: Profile;
     createdAt: Date;
+    uploadURL: string;
+    thumbnailURL: string;
+    accountId: number;
     countryCode?: string;
     name?: string;
     type?: string;
     size?: number;
-    uploadURL: string;
-    thumbnailURL: string;
     tags?: string[];
 }
 

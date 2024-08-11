@@ -30,6 +30,7 @@ export default function Nav() {
     const dispatch = useAppDispatch()
     const showUploader = useAppSelector(selectShowUploader)
     const searchParams = useAppSelector(selectSearchParams)
+
     const session = useContext(SessionContext)
     const [fetchVideos] = useLazyGetVideosQuery()
     const [_, purgeSession] = useState(false)
@@ -37,7 +38,7 @@ export default function Nav() {
     const [showAlert, setAlert] = useState<Alert>({ show: false })
     const [showSpinner, setShowSpinner] = useState(false)
     const [fuzzyCountries, setFuzzyCountries] = useState<Country[]>([])
-    const divRef = useRef<HTMLDivElement>(null)
+    const menuDivRef = useRef<HTMLDivElement>(null)
     const countryInputRef = useRef<HTMLInputElement>(null)
     const keywordInputRef = useRef<HTMLInputElement>(null)
     const countryButtonAreaRef = useRef<HTMLButtonElement>(null)
@@ -123,10 +124,10 @@ export default function Nav() {
 
     useEffect(() => {
         const handleClickDocument = (e: MouseEvent) => {
-            if (divRef.current && e.target) {
-                if (divRef.current.contains(e.target as HTMLElement) && !showDropList) {
+            if (menuDivRef.current && e.target) {
+                if (menuDivRef.current.contains(e.target as HTMLElement) && !showDropList) {
                     setShowDropList(true)
-                } else if (!divRef.current.contains(e.target as HTMLElement) && showDropList) {
+                } else if (!menuDivRef.current.contains(e.target as HTMLElement) && showDropList) {
                     setShowDropList(false)
                 }
             }
@@ -143,6 +144,7 @@ export default function Nav() {
                 }
             }
         }
+
         document.addEventListener('click', handleClickDocument, true)
         return () => {
             document.removeEventListener('click', handleClickDocument, true);
@@ -179,7 +181,7 @@ export default function Nav() {
                             <label className=''>What</label>
                             <input ref={keywordInputRef} type='text' placeholder="Search keywords" className='focus:outline-none rounded-full bg-transparent py-1' onChange={eh.onKeywordChange} />
                         </button>
-                        <RiSearch2Line size={40} className='absolute right-2 top-2 rounded-full text-white bg-rose-500 py-2 hover:cursor-pointer hover:bg-rose-800' onClick={eh.onSerach} />
+                        <RiSearch2Line size={40} className='absolute right-3 top-3 rounded-full text-white bg-rose-500 py-2 hover:cursor-pointer hover:bg-rose-800' onClick={eh.onSerach} />
                     </div>
                 </div>
                 <div className='flex flex-row gap-x-4 justify-start items-center absolute top-4 right-4'>
@@ -191,7 +193,7 @@ export default function Nav() {
                         <BsCartPlusFill size={20} className='text-white' />
                         <span className="text-sm text-white pl-2">Cart</span>
                     </button>
-                    <div ref={divRef} className="relative inline-block text-left ml-5">
+                    <div ref={menuDivRef} className="relative inline-block text-left ml-5">
                         <button className="relative flex flex-row gap-x-2 border-2 px-2 rounded-full items-center hover:shadow-md hover:cursor-pointer">
                             <GiHamburgerMenu size={18} />
                             {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" className='rounded-full p-1' /> : <FaUserCircle size={35} className='p-1' />}

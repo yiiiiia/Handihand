@@ -1,8 +1,12 @@
+/**
+ * This file provides the endpoint used to search videos
+ */
+
 import { prismaClient } from "@/lib/db/data-source";
 import { Profile, Video } from "@/lib/db/entities";
 import { logger } from "@/lib/logger";
 import { getSession } from "@/lib/session";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import { StatusCodes } from "http-status-codes";
 import { NextRequest } from "next/server";
 
@@ -24,12 +28,24 @@ async function handleCommonSearchVideos(req: NextRequest) {
         return Response.error()
     }
 
-    const res = await axios.get(`${backendURL}/api/videos`, { params: searchParams })
-    if (res.status != StatusCodes.OK) {
-        return new Response('internal error', { status: StatusCodes.INTERNAL_SERVER_ERROR })
+    // searching by product is not yet implemented
+    if (searchParams.get('searchBy') === 'product') {
+        return Response.json({ videos: [] })
     }
 
-    logger.info('get video search result:', res.data)
+    let res: AxiosResponse<Object[]>
+    try {
+        res = await axios.get(`${backendURL}/api/videos`, { params: searchParams })
+        if (res.status != StatusCodes.OK) {
+            logger.error(`response from backend is not 200, but ${res.status}`)
+            return new Response('internal error', { status: StatusCodes.INTERNAL_SERVER_ERROR })
+        }
+    } catch (error) {
+        logger.error(`failed to call backend to get videos, error: ${error}`)
+        return new Response('', { status: StatusCodes.INTERNAL_SERVER_ERROR })
+    }
+
+    logger.info(`got video respoonse:`, res.data)
 
     const videos: Video[] = []
     res.data.forEach((e: any) => {
@@ -55,11 +71,13 @@ async function handleCommonSearchVideos(req: NextRequest) {
                 createdAt: new Date(e.createdAt),
                 countryCode: e.countryCode,
                 uploadURL: e.uploadUrl,
-                thumbnailURL: e.thumbnailUrl
+                thumbnailURL: e.thumbnailUrl,
+                accountId: e.accountId,
             }
             videos.push(video)
         }
-    });
+    })
+
     return Response.json({ videos })
 }
 
@@ -79,27 +97,4 @@ async function handleGetMyUploadedVideos() {
         }
     })
     return Response.json({ number: videos.length })
-}
-
-function sample() {
-    const result: Video[] = []
-    const sample: Video = {
-        id: 0,
-        title: 'Hello Video',
-        description: "A Brif Description About the Video",
-        uploadURL: 'https://storage.googleapis.com/handihandit_bucket/video/Beautiful flower embroider_ab91a9ad9506c7f8f9b381847358da549df24c0af7a5157f8685b3032ac849e9.mp4',
-        thumbnailURL: 'https://storage.googleapis.com/handihandit_bucket/image/Beautiful flower embroider-coveriamge_809e2ed00e87230127bf08af506dcd2ee28015ccc8de6d2213889ee17d2cf590.png',
-        profile: {
-            id: 0,
-            photo: 'https://lh3.googleusercontent.com/a/ACg8ocLItYCylDVKrXiu-fpci4vAdmYBB2vESHsr_JMfak5kSbAWWg=s100',
-            username: 'qufei@handihand'
-        },
-        createdAt: new Date()
-
-    }
-    for (let i = 0; i < 20; i++) {
-        const item = { ...sample, id: i, uploadURL: encodeURI(sample.uploadURL), thumbnailURL: encodeURI(sample.thumbnailURL) }
-        result.push(item)
-    }
-    return Response.json(result)
 }

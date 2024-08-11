@@ -1,16 +1,13 @@
 'use client'
 
 import { Tag } from "@/lib/db/entities";
-import { selectSearchParams, setTags, useLazyGetVideosQuery } from "@/lib/features/searcher/searcher";
-import { useAppDispatch, useAppSelector } from "@/lib/hooks";
+import { setTags } from "@/lib/features/searcher/searcher";
+import { useAppDispatch } from "@/lib/hooks";
 import { useCallback, useRef, useState } from "react";
 import { MdArrowLeft, MdArrowRight } from "react-icons/md";
 
 export default function Tags({ tags }: { tags: Tag[] }) {
     const dispatch = useAppDispatch()
-    const searchParams = useAppSelector(selectSearchParams)
-    const [fetchVideos] = useLazyGetVideosQuery()
-
     const [activeTag, setActiveTag] = useState('')
     const parentRef = useRef<HTMLDivElement>(null)
     const childRefs = useRef<HTMLSpanElement[]>([])
@@ -68,9 +65,13 @@ export default function Tags({ tags }: { tags: Tag[] }) {
     }
 
     const handleTagClicked = (tag: string) => {
-        setActiveTag(tag)
-        dispatch(setTags([tag]))
-        fetchVideos(searchParams)
+        if (activeTag === tag) {
+            setActiveTag('')
+            dispatch(setTags([]))
+        } else {
+            setActiveTag(tag)
+            dispatch(setTags([tag]))
+        }
     }
 
     return (

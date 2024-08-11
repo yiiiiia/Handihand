@@ -1,5 +1,5 @@
 import { createAppSlice } from "@/lib/createAppSlice";
-import { Video } from "@/lib/db/entities";
+import { Tag, Video } from "@/lib/db/entities";
 import { PayloadAction } from "@reduxjs/toolkit";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
@@ -63,13 +63,61 @@ export interface SearchMyUploadedVideosResponse {
     number: number
 }
 
+export interface GetLike {
+    accountId: number;
+    videoId: number;
+}
+
+export interface GetLikeResp {
+    hasLiked: boolean;
+    likes: number;
+}
+
+export interface GetSave {
+    accountId: number;
+    videoId: number;
+}
+
+export interface GetSaveResp {
+    hasSaved: boolean;
+    saves: number;
+}
+
+export interface PostLike {
+    videoId: number;
+    accountId: number;
+    reqType: 'add' | 'remove'
+}
+
+export interface PostSave {
+    videoId: number;
+    accountId: number;
+    reqType: 'add' | 'remove'
+}
+
+export interface CommentInfo {
+    videoId: number;
+    accountId: number;
+    commentId: number;
+    photo: string;
+    username: string;
+    comment: string;
+    createdAt: string;
+}
+
+export interface PostComment {
+    accountId: number,
+    videoId: number,
+    comment: string
+}
+
 export const searchApiSlice = createApi({
-    baseQuery: fetchBaseQuery({ baseUrl: '/api/videos/' }),
+    baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
     reducerPath: 'searchApi',
-    tagTypes: ["VideoSearch"],
+    tagTypes: ["likes", "saves", 'comments'],
     endpoints: (build) => ({
         getVideos: build.query<SearchVideoResponse, SearchParams>({
-            query({ country, keyword, tags, pageNumber, pageSize }) {
+            query({ searchBy, country, keyword, tags, pageNumber, pageSize }) {
                 if (pageNumber <= 0) {
                     pageNumber = 1
                 }
@@ -77,13 +125,64 @@ export const searchApiSlice = createApi({
                     pageSize = 20
                 }
                 const qtag = tags.join(',')
-                return `all?countryCode=${country}&keyword=${keyword}&tags=${qtag}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+                const qstr = `/videos/all?searchBy=${searchBy}&countryCode=${country}&keyword=${keyword}&tags=${qtag}&pageNumber=${pageNumber}&pageSize=${pageSize}`
+                return encodeURI(qstr)
             },
         }),
+
         getUploadedVideos: build.query<SearchMyUploadedVideosResponse, void>({
-            query: () => 'my-videos'
-        })
+            query: () => '/videos/my-videos'
+        }),
+
+        getTags: build.query<Tag[], void>({
+            query: () => "/tags",
+        }),
+
+        getLikes: build.query<GetLikeResp, GetLike>({
+            query: ({ accountId, videoId }) => `/likes?accountId=${accountId}&videoId=${videoId}`,
+            providesTags: ['likes']
+        }),
+
+        getSaves: build.query<GetSaveResp, GetSave>({
+            query: ({ accountId, videoId }) => `/saves?accountId=${accountId}&videoId=${videoId}`,
+            providesTags: ['saves'],
+        }),
+
+        getComments: build.query<CommentInfo[], number>({
+            query: (videoId: number) => `/comments?videoId=${videoId}`,
+            providesTags: ['comments'],
+        }),
+
+        postLike: build.mutation<void, PostLike>({
+            query: postlike => ({
+                url: '/likes',
+                method: 'post',
+                body: postlike
+            }),
+            invalidatesTags: ['likes']
+        }),
+
+        postSave: build.mutation<void, PostSave>({
+            query: postSave => ({
+                url: '/saves',
+                method: 'post',
+                body: postSave
+            }),
+            invalidatesTags: ['saves']
+        }),
+
+        postComment: build.mutation<void, PostComment>({
+            query: postComment => ({
+                url: '/comments',
+                method: 'post',
+                body: postComment
+            }),
+            invalidatesTags: ['comments']
+        }),
     })
 })
 
-export const { useLazyGetVideosQuery, useGetVideosQuery, useGetUploadedVideosQuery } = searchApiSlice
+export const {
+    useLazyGetVideosQuery, useGetVideosQuery, useGetUploadedVideosQuery, useGetTagsQuery, useGetLikesQuery, useGetSavesQuery,
+    usePostLikeMutation, usePostSaveMutation, useGetCommentsQuery, usePostCommentMutation
+} = searchApiSlice

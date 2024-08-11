@@ -6,5 +6,5 @@ export async function GET() {
         id: t.id,
         word: t.word,
     }))
-    return Response.json({ tags })
+    return Response.json(tags)
 }
