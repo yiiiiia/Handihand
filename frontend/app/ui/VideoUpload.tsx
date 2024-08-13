@@ -17,6 +17,7 @@ import React, { ChangeEvent, useEffect, useRef, useState } from "react";
 import { FaCirclePlus, FaCloudArrowUp } from "react-icons/fa6";
 import { IoCheckmarkCircle } from "react-icons/io5";
 import { RxCrossCircled } from "react-icons/rx";
+import { SignedURLResult } from "../api/upload/[action]/route";
 
 const thumbnailHeight = 375
 const thumbnailWidth = 500
@@ -29,7 +30,7 @@ const thumbnailWidth = 500
 type Phase = 0 | 1 | 2 | 3 | 4
 
 export default function VideoUpload() {
-    const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null)
+    const [videoFile, setVideoFile] = useState<File | null>(null)
     const [generatedCoverDataURL, setGeneratedCoverDataURL] = useState('')
     const [selectedCover, setSelectedCover] = useState<File | null>(null)
     const selectedCoverDataURL = useRef('')
@@ -45,7 +46,6 @@ export default function VideoUpload() {
     const [uploadPercentage, setUploadPercentage] = useState(0)
     const [countdownTime, setCountdownTime] = useState(2)
     const [inCountdown, setInCountdown] = useState(false)
-    const [uploadErr, setUploadErr] = useState({ phase: 0, errmsg: '' })
 
     const videoFileInputRef = useRef<HTMLInputElement>(null)
     const imageFileInputRef = useRef<HTMLInputElement>(null)
@@ -111,7 +111,7 @@ export default function VideoUpload() {
             if (e.target.files && e.target.files[0]) {
                 const video = e.target.files[0] as File
                 const { dataURL, duration } = await extractThumbnail(video)
-                setSelectedVideoFile(video)
+                setVideoFile(video)
                 setGeneratedCoverDataURL(dataURL)
                 setDuration(duration)
                 setPhase(1)
@@ -210,7 +210,7 @@ export default function VideoUpload() {
             if (phase > 1) {
                 return
             }
-            if (!selectedVideoFile) {
+            if (!videoFile) {
                 throw new Error('no video file selected')
             }
             if (!generatedCoverDataURL) {
@@ -220,84 +220,84 @@ export default function VideoUpload() {
                 throw new Error('no selected cover')
             }
 
+            let imageToUplaod: Blob | null = null
+            if (useGeneratedCover) {
+                imageToUplaod = dataURLToBlob(generatedCoverDataURL)
+            } else if (selectedCover) {
+                imageToUplaod = selectedCover
+            }
+            if (!imageToUplaod) {
+                throw new Error('no cover image to upload')
+            }
+
+            const getSignedURLReq = new FormData()
+            getSignedURLReq.append('videoName', videoFile.name)
+            getSignedURLReq.append('videoType', videoFile.type)
+            getSignedURLReq.append('imageType', imageToUplaod.type)
+            const signedURLResp = await axios.post<SignedURLResult>('/api/upload/video', getSignedURLReq, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            })
+            if (signedURLResp.status !== StatusCodes.OK) {
+                throw new Error('failed to get signedURL')
+            }
+
+            setPhase(2)
+            const signedURLData = signedURLResp.data
+            const totalSize = videoFile.size + imageToUplaod.size
+            try {
+                await axios.put(signedURLData.video.signedURL, videoFile,
+                    {
+                        onUploadProgress: (e: AxiosProgressEvent) => {
+                            const { loaded } = e
+                            let percentage = Math.floor((loaded * 100) / totalSize);
+                            setUploadPercentage(percentage)
+                        },
+                        headers: { 'Content-Type': signedURLData.video.mimeType }
+                    })
+
+                await axios.put(signedURLData.image.signedURL, imageToUplaod,
+                    {
+                        onUploadProgress: (e: AxiosProgressEvent) => {
+                            const { loaded } = e
+                            let percentage = Math.floor(((loaded + videoFile.size) * 100) / totalSize);
+                            setUploadPercentage(percentage)
+                            if (percentage === 100) {
+                                setPhase(3)
+                            }
+                        },
+                        headers: { 'Content-Type': signedURLData.image.mimeType }
+                    })
+            } catch (error) {
+                throw new Error(`failed to upload data: ${error}`)
+            }
+
             const formData = new FormData(e.target as HTMLFormElement)
             const title = formData.get('title') as string
             if (!title || !title.trim()) {
                 setTitleError('Title is required')
                 return
             }
-
             const description = formData.get('description') as string
             if (!description || !description.trim()) {
                 setDescError('Description is required')
                 return
             }
 
-            const videoFileExt = getFileExtension(selectedVideoFile.type)
-            if (!videoFileExt) {
-                throw new Error(`unsupported video file type: ${selectedVideoFile.type}`)
-            }
-
-            formData.append('video', selectedVideoFile, selectedVideoFile.name)
-            if (useGeneratedCover) {
-                const blob = dataURLToBlob(generatedCoverDataURL)
-                if (!blob) {
-                    throw new Error('failed to get blob from data url')
-                }
-                formData.append('image', blob)
-            } else {
-                if (selectedCover) {
-                    formData.append('image', selectedCover)
-                } else {
-                    throw new Error('no selected cover available')
-                }
-            }
+            formData.append('name', videoFile.name)
+            formData.append('type', videoFile.type)
+            formData.append('size', videoFile.size.toString())
+            formData.append('videoDest', signedURLData.video.dest)
+            formData.append('imageDest', signedURLData.image.dest)
             if (selectedTags.length > 0) {
                 selectedTags.forEach(tag => {
                     formData.append('tags', tag.word)
                 })
             }
-
-            setPhase(2)
-            const uploadRes = await axios.post('/api/upload/video', formData, {
-                onUploadProgress: (e: AxiosProgressEvent) => {
-                    const { loaded, total } = e
-                    if (total) {
-                        let percentage = Math.floor((loaded * 100) / total);
-                        setUploadPercentage(percentage)
-                        if (percentage === 100) {
-                            setPhase(3)
-                        }
-                    }
-                },
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                }
+            await axios.post('/api/upload/updates?type=video', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             })
-            if (uploadRes.status !== StatusCodes.OK) {
-                setUploadErr({ phase: 2, errmsg: 'failed to upload video' })
-                return
-            }
-            if (uploadRes.data.checkToken) {
-                while (true) {
-                    // check upload status every 3 second
-                    const checkRes = await axios.get('/api/upload/check_status', { params: { token: uploadRes.data.checkToken } })
-                    if (checkRes.status !== StatusCodes.OK) {
-                        setUploadErr({ phase: 3, errmsg: 'failed to poll uplaod processing status' })
-                        break
-                    }
-                    if (checkRes.data.status === 'ok') {
-                        setPhase(4)
-                        setInCountdown(true)
-                        break
-                    }
-                    await new Promise<void>(rev => {
-                        setTimeout(() => {
-                            rev()
-                        }, 3000)
-                    })
-                }
-            }
+            setPhase(4)
+            setInCountdown(true)
         }
     }
 
@@ -346,13 +346,13 @@ export default function VideoUpload() {
                 </div>
             }
             {
-                phase > 0 && selectedVideoFile &&
+                phase > 0 && videoFile &&
                 <div className="fixed left-0 top-0 flex h-full w-full justify-center bg-black bg-opacity-70 py-10 z-10" onClick={eh.onDocumentClicked}>
                     <div className="flex flex-col min-w-[64rem] gap-y-3">
                         <div className="w-full flex flex-row items-center px-6 py-4 gap-x-10 text-base rounded-xl shadow-lg bg-white">
                             <div className="basis-5/6 flex flex-row gap-x-6 items-center">
-                                <p className="font-light">File <span className="font-semibold ml-2">{selectedVideoFile.name}</span></p>
-                                <p className="font-light">Size <span className="font-semibold ml-2">{convertSize(selectedVideoFile.size)}</span></p>
+                                <p className="font-light">File <span className="font-semibold ml-2">{videoFile.name}</span></p>
+                                <p className="font-light">Size <span className="font-semibold ml-2">{convertSize(videoFile.size)}</span></p>
                                 <p className="font-light">Duration <span className="font-semibold ml-2">{convertDuration(duration)}</span></p>
                             </div>
                             <p className="text-red-600"><IoCheckmarkCircle size={30} className="inline" /> Selected</p>

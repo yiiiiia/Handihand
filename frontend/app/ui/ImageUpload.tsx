@@ -1,6 +1,8 @@
 'use client'
 
 import { getFileExtension } from "@/lib/util"
+import axios from "axios"
+import { StatusCodes } from "http-status-codes"
 import Image from "next/image"
 import { memo, useEffect, useRef, useState } from "react"
 import AvatarEditor from "react-avatar-editor"
@@ -114,17 +116,38 @@ export default function ImageUpload(opts: Options) {
                     resolve(opts.selectedFile)
                 }
             })
-            if (blobToUpload) {
-                const formData = new FormData()
-                formData.append('image', blobToUpload, opts.selectedFile.name)
-                await fetch('/api/upload/image', {
-                    method: 'POST',
-                    body: formData
-                })
-                opts.onUploadComplete(dataUrlRef.current)
-            } else {
+            if (!blobToUpload) {
                 throw new Error('no blob to upoad')
             }
+
+            let formData = new FormData()
+            formData.append('imageName', opts.selectedFile.name)
+            formData.append('imageType', opts.selectedFile.type)
+            const signedURLRes = await fetch('/api/upload/image', {
+                method: 'POST',
+                body: formData
+            })
+            if (signedURLRes.status != StatusCodes.OK) {
+                throw new Error(`failed to get imageUpload signed URL`)
+            }
+
+            const respData = await signedURLRes.json()
+            try {
+                await axios.put(respData.signedURL, blobToUpload,
+                    {
+                        headers: { 'Content-Type': opts.selectedFile.type }
+                    })
+            } catch (err) {
+                throw new Error(`failed to upload image: ${err}`)
+            }
+
+            formData = new FormData()
+            formData.append('imageDest', respData.dest)
+            await axios.post('/api/upload/updates?type=image', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            })
+
+            opts.onUploadComplete(dataUrlRef.current)
         }
     }
 
