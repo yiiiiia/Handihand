@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "darwin-arm64", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -163,8 +164,8 @@ model video_tag {
   video_id   Int
   tag_id     Int
   created_at DateTime @default(now()) @db.Timestamptz(6)
-  tag        tag      @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "foreign_key_tag_id")
-  video      video    @relation(fields: [video_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "foreign_key_video_id")
+  tag        tag      @relation(fields: [tag_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  video      video    @relation(fields: [video_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([video_id, tag_id])
 }

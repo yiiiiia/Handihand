@@ -1,7 +1,5 @@
 package com.kefang.backend;
 
-import java.util.Date;
-
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +12,6 @@ class AppTest {
 
 	@Test
 	void testLoadContext() {
-		logger.info("This is just a simple loggign message: {}, {}, {}", 1, "hello,world", new Date());
+		logger.info("Context loaded");
 	}
 }

@@ -1,18 +1,20 @@
 'use client'
 
-import { Tag } from "@/lib/db/entities";
-import { setTags } from "@/lib/features/searcher/searcher";
+import { setTags, useGetTagsQuery } from "@/lib/features/searcher/searcher";
 import { useAppDispatch } from "@/lib/hooks";
 import { useCallback, useRef, useState } from "react";
 import { MdArrowLeft, MdArrowRight } from "react-icons/md";
 
-export default function Tags({ tags }: { tags: Tag[] }) {
+export default function Tags() {
     const dispatch = useAppDispatch()
+    const { data: tags = [] } = useGetTagsQuery()
     const [activeTag, setActiveTag] = useState('')
     const parentRef = useRef<HTMLDivElement>(null)
     const childRefs = useRef<HTMLSpanElement[]>([])
-    const refCallback = useCallback((ele: HTMLSpanElement, index: number) => {
-        childRefs.current[index] = ele
+    const refCallback = useCallback((ele: HTMLSpanElement | null, index: number) => {
+        if (ele) {
+            childRefs.current[index] = ele
+        }
     }, [])
 
     const handleArrowClick = (direction: 'left' | 'right') => {

@@ -34,11 +34,6 @@ async function handler(req: NextRequest, { params }: { params: { action: string 
     }
 
     if (req.method === 'POST' && params.action === 'video') {
-        // const checkToken = randToken()
-        // setTimeout(() => {
-        //     globalUploadingResult[checkToken] = true
-        // }, 2000)
-        // return Response.json({ checkToken })
         return handleVideoUpload(req)
     }
 
@@ -148,6 +143,7 @@ async function uploadVedioImage(video: File, videoExt: string, image: File, imag
     if (!bucketName) {
         throw new Error('env "GOOGLE_STORAGE_BUCKET_NAME" is missing')
     }
+
     const bucket = googleStorage.bucket(bucketName)
     const videoDestFileName = getDestFileLocation(videoFolder, video.name, videoExt)
     let coverImageName = ''
@@ -284,8 +280,7 @@ function getDestFileLocation(folderPath: string, filename: string, extension: st
     return [folderPath, '/', name, '_', randToken(), '.', extension].join('')
 }
 
-// Function to get the URL of the object in google cloud bucket
-export function getBucketObjectPublicURL(bucketName: string, fileName: string) {
+function getBucketObjectPublicURL(bucketName: string, fileName: string) {
     const raw = `https://storage.googleapis.com/${bucketName}/${fileName}`;
     return encodeURI(raw)
 }

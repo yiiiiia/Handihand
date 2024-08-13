@@ -135,7 +135,7 @@ export const searchApiSlice = createApi({
         }),
 
         getTags: build.query<Tag[], void>({
-            query: () => "/tags",
+            query: () => "/tags?all=yes",
         }),
 
         getLikes: build.query<GetLikeResp, GetLike>({

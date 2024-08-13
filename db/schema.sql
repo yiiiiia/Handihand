@@ -63,6 +63,40 @@ ALTER SEQUENCE public.account_id_seq OWNED BY public.account.id;
 
 
 --
+-- Name: comments; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.comments (
+    id integer NOT NULL,
+    account_id integer NOT NULL,
+    video_id integer,
+    comment_id integer,
+    comment text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: comments_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.comments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: comments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.comments_id_seq OWNED BY public.comments.id;
+
+
+--
 -- Name: countries; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -91,6 +125,17 @@ CREATE SEQUENCE public.countries_id_seq
 --
 
 ALTER SEQUENCE public.countries_id_seq OWNED BY public.countries.id;
+
+
+--
+-- Name: likes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.likes (
+    account_id integer NOT NULL,
+    video_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 
 --
@@ -166,6 +211,17 @@ CREATE SEQUENCE public.profile_id_seq
 --
 
 ALTER SEQUENCE public.profile_id_seq OWNED BY public.profile.id;
+
+
+--
+-- Name: saves; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.saves (
+    account_id integer NOT NULL,
+    video_id integer NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
 
 
 --
@@ -333,6 +389,13 @@ ALTER TABLE ONLY public.account ALTER COLUMN id SET DEFAULT nextval('public.acco
 
 
 --
+-- Name: comments id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.comments_id_seq'::regclass);
+
+
+--
 -- Name: countries id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -398,6 +461,14 @@ ALTER TABLE ONLY public.account
 
 
 --
+-- Name: comments comments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.comments
+    ADD CONSTRAINT comments_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: countries countries_country_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -419,6 +490,14 @@ ALTER TABLE ONLY public.countries
 
 ALTER TABLE ONLY public.countries
     ADD CONSTRAINT countries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: likes likes_account_id_video_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.likes
+    ADD CONSTRAINT likes_account_id_video_id_key UNIQUE (account_id, video_id);
 
 
 --
@@ -451,6 +530,14 @@ ALTER TABLE ONLY public.profile
 
 ALTER TABLE ONLY public.profile
     ADD CONSTRAINT profile_username_key UNIQUE (username);
+
+
+--
+-- Name: saves saves_account_id_video_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.saves
+    ADD CONSTRAINT saves_account_id_video_id_key UNIQUE (account_id, video_id);
 
 
 --
@@ -526,6 +613,27 @@ ALTER TABLE ONLY public.video_tag
 
 
 --
+-- Name: idx_comments_account_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_comments_account_id ON public.comments USING btree (account_id);
+
+
+--
+-- Name: idx_comments_comment_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_comments_comment_id ON public.comments USING btree (comment_id);
+
+
+--
+-- Name: idx_comments_video_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_comments_video_id ON public.comments USING btree (video_id);
+
+
+--
 -- Name: idx_oauth_account_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -589,6 +697,46 @@ CREATE INDEX idx_video_title_description ON public.video USING gin (to_tsvector(
 
 
 --
+-- Name: comments comments_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.comments
+    ADD CONSTRAINT comments_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id) ON DELETE CASCADE;
+
+
+--
+-- Name: comments comments_comment_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.comments
+    ADD CONSTRAINT comments_comment_id_fkey FOREIGN KEY (comment_id) REFERENCES public.comments(id) ON DELETE CASCADE;
+
+
+--
+-- Name: comments comments_video_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.comments
+    ADD CONSTRAINT comments_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.video(id) ON DELETE CASCADE;
+
+
+--
+-- Name: likes likes_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.likes
+    ADD CONSTRAINT likes_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id) ON DELETE CASCADE;
+
+
+--
+-- Name: likes likes_video_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.likes
+    ADD CONSTRAINT likes_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.video(id) ON DELETE CASCADE;
+
+
+--
 -- Name: oauth oauth_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -605,6 +753,22 @@ ALTER TABLE ONLY public.profile
 
 
 --
+-- Name: saves saves_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.saves
+    ADD CONSTRAINT saves_account_id_fkey FOREIGN KEY (account_id) REFERENCES public.account(id) ON DELETE CASCADE;
+
+
+--
+-- Name: saves saves_video_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.saves
+    ADD CONSTRAINT saves_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.video(id) ON DELETE CASCADE;
+
+
+--
 -- Name: session session_account_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -618,6 +782,22 @@ ALTER TABLE ONLY public.session
 
 ALTER TABLE ONLY public.verification
     ADD CONSTRAINT verification_session_fkey FOREIGN KEY (session) REFERENCES public.session(session) ON DELETE CASCADE;
+
+
+--
+-- Name: video_tag video_tag_tag_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.video_tag
+    ADD CONSTRAINT video_tag_tag_id_fkey FOREIGN KEY (tag_id) REFERENCES public.tag(id) ON DELETE CASCADE;
+
+
+--
+-- Name: video_tag video_tag_video_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.video_tag
+    ADD CONSTRAINT video_tag_video_id_fkey FOREIGN KEY (video_id) REFERENCES public.video(id) ON DELETE CASCADE;
 
 
 --

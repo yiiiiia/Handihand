@@ -100,7 +100,7 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
     const { data: getSavesData } = useGetSavesQuery({ accountId: accountId, videoId: video.id })
     const [postSave] = usePostSaveMutation()
     const [postComment, { isLoading: isPostCommentLoading }] = usePostCommentMutation()
-    const { data: getCommentsData } = useGetCommentsQuery(video.id)
+    const { data: getCommentsData = [] } = useGetCommentsQuery(video.id)
 
     const [animation, setAnimation] = useState('animate-fadeIn')
     const [commentFocused, setCommentFocused] = useState(false)
@@ -206,9 +206,9 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
                     </div>
                     <div className="py-2 grow overflow-y-auto space-y-4">
                         {
-                            getCommentsData?.map(e => {
+                            getCommentsData.map(e => {
                                 return (
-                                    <div className="flex flex-row gap-x-2">
+                                    <div key={e.commentId} className="flex flex-row gap-x-2">
                                         <Image src={e.photo === '' ? '/owl.jpg' : e.photo} width={30} height={30} alt='avatar' className="inline h-1/2" />
                                         <div className="flex flex-col gap-y-1">
                                             <p className="text-sm">
@@ -270,7 +270,7 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
                             </div>
                             <div className="flex flex-row gap-x-2">
                                 <BsFillChatDotsFill size={20} className="hover:cursor-pointer" />
-                                <span>0</span>
+                                <span>{getCommentsData.length}</span>
                             </div>
                         </div>
                     </div>

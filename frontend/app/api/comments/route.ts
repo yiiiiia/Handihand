@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
     const comments = await prismaClient.comments.findMany({
         where: { video_id: videoId }
     })
-    logger.debug(`comment: ${comments}`)
     if (!comments) {
         return Response.json([])
     }

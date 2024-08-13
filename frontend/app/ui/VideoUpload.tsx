@@ -175,12 +175,6 @@ export default function VideoUpload() {
             setSelectedTags(tags => [...tags, tag])
         },
 
-        onFormKeyDown: (e: React.KeyboardEvent) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-            }
-        },
-
         onImageSelectBtnClicked: () => {
             if (imageFileInputRef.current) {
                 imageFileInputRef.current.click()
@@ -365,7 +359,7 @@ export default function VideoUpload() {
                         </div>
                         {
                             phase === 1 &&
-                            <form className="flex flex-col p-6 rounded-xl shadow-lg bg-white overflow-y-auto" onKeyDown={eh.onFormKeyDown} onSubmit={eh.onFormSubmit}>
+                            <form className="flex flex-col p-6 rounded-xl shadow-lg bg-white overflow-y-auto" onSubmit={eh.onFormSubmit}>
                                 <div className="relative flex flex-col">
                                     <label htmlFor="title" className="font-semibold m-2">Title</label>
                                     <input id='title' name='title' className="p-2 rounded-md" placeholder="give a title to your video" onChange={() => { setTitleError('') }} ></input>

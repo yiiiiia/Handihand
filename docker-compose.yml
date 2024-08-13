@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16
-    container_name: handihand-dev
+    container_name: handihand_db
     restart: always
     environment:
       POSTGRES_PASSWORD: postgres
@@ -9,6 +9,40 @@ services:
       POSTGRES_DB: handihand_dev
     ports:
       - "8888:5432"
+
+  backend:
+    image: gcr.io/focus-mechanic-431119-a9/handihand_backend:latest
+    container_name: backend
+    restart: always
+    environment:
+      DATASOURCE_URL: jdbc:postgresql://handihand_db:5432/handihand_dev?sslmode=disable
+      DATASOURCE_USER: postgres
+      DATASOURCE_PASS: postgres
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+  frontend:
+    image: gcr.io/focus-mechanic-431119-a9/handihand_frontend:latest
+    container_name: frontend
+    restart: always
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@handihand_db:5432/handihand_dev?sslmode=disable
+      BASE_URL: http://localhost:3000
+      BACKEND_URL: http://backend:8080
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_OAUTH_CALLBACK: http://localhost:3000/api/auth/callback/google
+      GOOGLE_CLOUD_PROJECT_ID: focus-mechanic-431119-a9
+      GOOGLE_STORAGE_BUCKET_NAME: handihandit_bucket
+      EMAIL_USER: kefangzhao@gmail.com
+      EMAIL_PASS: ${EMAIL_PASS}
+      EMAIL_FROM: noreply@handihand.com
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
 
   db-migration:
     image: amacneil/dbmate:2
@@ -18,4 +52,4 @@ services:
     depends_on:
       - postgres
     environment:
-      DATABASE_URL: postgres://postgres:postgres@handihand-dev:5432/handihand_dev?sslmode=disable
+      DATABASE_URL: postgres://postgres:postgres@handihand_db:5432/handihand_dev?sslmode=disable

@@ -10,7 +10,7 @@ import { useGetUploadedVideosQuery } from "@/lib/features/searcher/searcher";
 import { Fzf } from 'fzf';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, ChangeEventHandler, FocusEvent, FocusEventHandler, FormEvent, MouseEvent, RefObject, useContext, useEffect, useRef, useState } from "react";
+import { ChangeEvent, ChangeEventHandler, FocusEvent, FocusEventHandler, FormEvent, RefObject, useContext, useEffect, useRef, useState } from "react";
 import { CiEdit } from "react-icons/ci";
 import { GoCheck } from "react-icons/go";
 import { RxCross2 } from "react-icons/rx";
@@ -93,7 +93,7 @@ export default function Profile() {
         }
     }
 
-    function onCountryItemClick(e: MouseEvent<HTMLAnchorElement>) {
+    function onCountryItemClick(e: React.MouseEvent<HTMLAnchorElement>) {
         const ele = e.target as HTMLElement
         if (countryInputRef.current) {
             countryInputRef.current.value = ele.innerText
@@ -132,17 +132,17 @@ export default function Profile() {
     }
 
     useEffect(() => {
-        const handleClickOutside = event => {
-            if (countryDivRef.current && event.target) {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (countryDivRef.current && e.target) {
                 const div = countryDivRef.current
-                if (!div.contains(event.target as HTMLElement)) {
+                if (!div.contains(e.target as HTMLElement)) {
                     setFuzzyCountries([])
                 }
             }
         };
-        document.addEventListener('click', handleClickOutside);
+        document.addEventListener('click', handleClickOutside, true);
         return () => {
-            document.removeEventListener('click', handleClickOutside);
+            document.removeEventListener('click', handleClickOutside, true);
         };
     }, []);
 
