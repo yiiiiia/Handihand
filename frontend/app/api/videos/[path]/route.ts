@@ -45,8 +45,6 @@ async function handleCommonSearchVideos(req: NextRequest) {
         return new Response('', { status: StatusCodes.INTERNAL_SERVER_ERROR })
     }
 
-    logger.info(`got video respoonse:`, res.data)
-
     const videos: Video[] = []
     res.data.forEach((e: any) => {
         if (!e.profile) {

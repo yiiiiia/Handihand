@@ -1,5 +1,6 @@
 'use client'
 
+import { PostPhotoMeta, usePostPhotoMetaMutation } from "@/lib/features/searcher/searcher"
 import { getFileExtension } from "@/lib/util"
 import axios from "axios"
 import { StatusCodes } from "http-status-codes"
@@ -8,6 +9,7 @@ import { memo, useEffect, useRef, useState } from "react"
 import AvatarEditor from "react-avatar-editor"
 import { FiMinusCircle, FiPlusCircle } from "react-icons/fi"
 import { RxCross2 } from "react-icons/rx"
+import { PostGetSignedURL, SignedURLResp } from "../api/upload/[action]/route"
 
 const SIDE_LENGTH = 440
 const RADIUS = 220
@@ -38,6 +40,7 @@ const initState: State = {
 }
 
 export default function ImageUpload(opts: Options) {
+    const [postPhotoMeta] = usePostPhotoMetaMutation()
     const [state, setState] = useState<State>(initState)
     const editorRef = useRef<AvatarEditor>(null)
     const editorStateRef = useRef(state.editor)
@@ -98,20 +101,21 @@ export default function ImageUpload(opts: Options) {
             if (!dataUrlRef.current) {
                 throw new Error(`no data url produced`)
             }
-            const ext = getFileExtension(opts.selectedFile.type)
-            if (!ext) {
+            const fileExt = getFileExtension(opts.selectedFile.type)
+            if (!fileExt) {
                 throw new Error(`cannot handle file with type: ${opts.selectedFile.type}`)
             }
 
             setState(old => ({ ...old, status: 'uploading' }))
+
             const blobToUpload = await new Promise<Blob | null>(resolve => {
                 if (canvasRef.current) {
                     canvasRef.current.toBlob(async blob => {
                         if (!blob) {
-                            throw new Error('no blob converting from a canvas!')
+                            throw new Error('no blob converted from a canvas!')
                         }
                         resolve(blob)
-                    }, ext)
+                    }, fileExt)
                 } else {
                     resolve(opts.selectedFile)
                 }
@@ -120,33 +124,30 @@ export default function ImageUpload(opts: Options) {
                 throw new Error('no blob to upoad')
             }
 
-            let formData = new FormData()
-            formData.append('imageName', opts.selectedFile.name)
-            formData.append('imageType', opts.selectedFile.type)
-            const signedURLRes = await fetch('/api/upload/image', {
-                method: 'POST',
-                body: formData
-            })
-            if (signedURLRes.status != StatusCodes.OK) {
-                throw new Error(`failed to get imageUpload signed URL`)
+            const signedURLReq: PostGetSignedURL = {
+                imageName: opts.selectedFile.name,
+                imageType: opts.selectedFile.type,
+                videoName: '',
+                videoType: '',
+            }
+            const resp = await axios.post(`/api/upload/signedURL?for=photo`, signedURLReq)
+            if (resp.status !== StatusCodes.OK) {
+                throw new Error('failed to get signedURL')
             }
 
-            const respData = await signedURLRes.json()
+            const signedURL: SignedURLResp = resp.data
             try {
-                await axios.put(respData.signedURL, blobToUpload,
-                    {
-                        headers: { 'Content-Type': opts.selectedFile.type }
-                    })
-            } catch (err) {
-                throw new Error(`failed to upload image: ${err}`)
+                await axios.put(signedURL.imageSignedURL, blobToUpload, {
+                    headers: { 'Content-Type': opts.selectedFile.type }
+                })
+            } catch (error) {
+                throw new Error(`failed to upload image: ${error}`)
             }
 
-            formData = new FormData()
-            formData.append('imageDest', respData.dest)
-            await axios.post('/api/upload/updates?type=image', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            })
-
+            const photoMeta: PostPhotoMeta = {
+                photoDest: signedURL.imageDest
+            }
+            await postPhotoMeta(photoMeta).unwrap()
             opts.onUploadComplete(dataUrlRef.current)
         }
     }

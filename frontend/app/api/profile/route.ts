@@ -4,6 +4,7 @@ import { findProfilebyUsername, getCsrfInSession } from "@/lib/db/query";
 import { logger } from "@/lib/logger";
 import { getSession } from "@/lib/session";
 import { COOKIE_CSRF } from "@/lib/util";
+import { StatusCodes } from "http-status-codes";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextRequest } from "next/server";
@@ -30,6 +31,14 @@ export type ProfileUpdateResult = {
         streetAddress?: string[];
         extendedAddress?: string[];
     }
+}
+
+export async function GET() {
+    const session = await getSession()
+    if (!session?.profile?.id) {
+        return new Response('', { status: StatusCodes.NOT_FOUND })
+    }
+    return Response.json(session.profile)
 }
 
 export async function POST(req: NextRequest) {

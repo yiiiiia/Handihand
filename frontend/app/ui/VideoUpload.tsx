@@ -5,10 +5,10 @@
 'use client'
 
 import { Tag } from "@/lib/db/entities";
-import { useGetTagsQuery } from "@/lib/features/searcher/searcher";
+import { PostVideoMeta, useGetTagsQuery, usePostVideoMetaMutation } from "@/lib/features/searcher/searcher";
 import { hideUploader } from "@/lib/features/uploader/uploaderSlice";
 import { useAppDispatch } from "@/lib/hooks";
-import { dataURLToBlob, getFileExtension } from "@/lib/util";
+import { dataURLToBlob } from "@/lib/util";
 import axios, { AxiosProgressEvent } from 'axios';
 import { Fzf } from 'fzf';
 import { StatusCodes } from "http-status-codes";
@@ -17,7 +17,7 @@ import React, { ChangeEvent, useEffect, useRef, useState } from "react";
 import { FaCirclePlus, FaCloudArrowUp } from "react-icons/fa6";
 import { IoCheckmarkCircle } from "react-icons/io5";
 import { RxCrossCircled } from "react-icons/rx";
-import { SignedURLResult } from "../api/upload/[action]/route";
+import { PostGetSignedURL, SignedURLResp } from "../api/upload/[action]/route";
 
 const thumbnailHeight = 375
 const thumbnailWidth = 500
@@ -44,8 +44,7 @@ export default function VideoUpload() {
     const [descError, setDescError] = useState('')
     const [titleError, setTitleError] = useState('')
     const [uploadPercentage, setUploadPercentage] = useState(0)
-    const [countdownTime, setCountdownTime] = useState(2)
-    const [inCountdown, setInCountdown] = useState(false)
+    const [submiting, setSubmiting] = useState(false)
 
     const videoFileInputRef = useRef<HTMLInputElement>(null)
     const imageFileInputRef = useRef<HTMLInputElement>(null)
@@ -53,6 +52,7 @@ export default function VideoUpload() {
     const categoryInputDivRef = useRef<HTMLDivElement>(null)
     const mainAeraRef = useRef<HTMLDivElement>(null)
     const dispatch = useAppDispatch()
+    const [postVideoMeta] = usePostVideoMetaMutation()
 
     const { data: tags = [] } = useGetTagsQuery()
     const tagMap: Record<string, Tag> = {}
@@ -107,6 +107,22 @@ export default function VideoUpload() {
             }
         },
 
+        onCategoryInputKeydown: (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                e.preventDefault()
+                let tag: Tag | null = null
+                if (fuzzyTags.length > 0) {
+                    const word = fuzzyTags[0]
+                    tag = tagMap[word.toLowerCase()]
+                }
+                setAddingCategory(false)
+                setFuzzyTags([])
+                if (tag) {
+                    setSelectedTags(tags => [...tags, tag])
+                }
+            }
+        },
+
         onVideoFileSelected: async (e: ChangeEvent<HTMLInputElement>) => {
             if (e.target.files && e.target.files[0]) {
                 const video = e.target.files[0] as File
@@ -132,8 +148,6 @@ export default function VideoUpload() {
                 }
                 return
             }
-
-            console.log('tag input change tagsLists', tagList)
 
             const source = tagList.filter(tag => {
                 const selectedWords = selectedTags.map(t => t.word)
@@ -210,6 +224,9 @@ export default function VideoUpload() {
             if (phase > 1) {
                 return
             }
+
+            setSubmiting(true)
+
             if (!videoFile) {
                 throw new Error('no video file selected')
             }
@@ -230,47 +247,6 @@ export default function VideoUpload() {
                 throw new Error('no cover image to upload')
             }
 
-            const getSignedURLReq = new FormData()
-            getSignedURLReq.append('videoName', videoFile.name)
-            getSignedURLReq.append('videoType', videoFile.type)
-            getSignedURLReq.append('imageType', imageToUplaod.type)
-            const signedURLResp = await axios.post<SignedURLResult>('/api/upload/video', getSignedURLReq, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            })
-            if (signedURLResp.status !== StatusCodes.OK) {
-                throw new Error('failed to get signedURL')
-            }
-
-            setPhase(2)
-            const signedURLData = signedURLResp.data
-            const totalSize = videoFile.size + imageToUplaod.size
-            try {
-                await axios.put(signedURLData.video.signedURL, videoFile,
-                    {
-                        onUploadProgress: (e: AxiosProgressEvent) => {
-                            const { loaded } = e
-                            let percentage = Math.floor((loaded * 100) / totalSize);
-                            setUploadPercentage(percentage)
-                        },
-                        headers: { 'Content-Type': signedURLData.video.mimeType }
-                    })
-
-                await axios.put(signedURLData.image.signedURL, imageToUplaod,
-                    {
-                        onUploadProgress: (e: AxiosProgressEvent) => {
-                            const { loaded } = e
-                            let percentage = Math.floor(((loaded + videoFile.size) * 100) / totalSize);
-                            setUploadPercentage(percentage)
-                            if (percentage === 100) {
-                                setPhase(3)
-                            }
-                        },
-                        headers: { 'Content-Type': signedURLData.image.mimeType }
-                    })
-            } catch (error) {
-                throw new Error(`failed to upload data: ${error}`)
-            }
-
             const formData = new FormData(e.target as HTMLFormElement)
             const title = formData.get('title') as string
             if (!title || !title.trim()) {
@@ -283,35 +259,63 @@ export default function VideoUpload() {
                 return
             }
 
-            formData.append('name', videoFile.name)
-            formData.append('type', videoFile.type)
-            formData.append('size', videoFile.size.toString())
-            formData.append('videoDest', signedURLData.video.dest)
-            formData.append('imageDest', signedURLData.image.dest)
-            if (selectedTags.length > 0) {
-                selectedTags.forEach(tag => {
-                    formData.append('tags', tag.word)
-                })
+            const signedURLReq: PostGetSignedURL = {
+                videoName: videoFile.name,
+                videoType: videoFile.type,
+                imageType: imageToUplaod.type,
+                imageName: '',
             }
-            await axios.post('/api/upload/updates?type=video', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            })
-            setPhase(4)
-            setInCountdown(true)
+            const resp = await axios.post(`/api/upload/signedURL?for=video`, signedURLReq)
+            if (resp.status !== StatusCodes.OK) {
+                throw new Error('failed to get signedURL')
+            }
+            const signedURL: SignedURLResp = resp.data
+
+            setPhase(2)
+
+            const totalSize = videoFile.size + imageToUplaod.size
+            try {
+                await axios.put(signedURL.videoSignedURL, videoFile,
+                    {
+                        headers: { 'Content-Type': videoFile.type },
+                        onUploadProgress: (e: AxiosProgressEvent) => {
+                            const { loaded } = e
+                            let percentage = Math.floor((loaded * 100) / totalSize);
+                            setUploadPercentage(percentage)
+                        },
+                    })
+                await axios.put(signedURL.imageSignedURL, imageToUplaod,
+                    {
+                        onUploadProgress: (e: AxiosProgressEvent) => {
+                            const { loaded } = e
+                            let percentage = Math.floor(((loaded + videoFile.size) * 100) / totalSize);
+                            setUploadPercentage(percentage)
+                            if (percentage === 100) {
+                                setPhase(3)
+                            }
+                        },
+                        headers: { 'Content-Type': imageToUplaod.type }
+                    })
+            } catch (error) {
+                throw new Error(`failed to upload data: ${error}`)
+            }
+
+            const videoMeta: PostVideoMeta = {
+                title: title,
+                description: description,
+                name: videoFile.name,
+                type: videoFile.type,
+                size: videoFile.size,
+                videoDest: signedURL.videoDest,
+                thumbnailDest: signedURL.imageDest,
+                tags: selectedTags.map(tag => tag.word),
+            }
+            await postVideoMeta(videoMeta).unwrap()
+            setTimeout(() => {
+                dispatch(hideUploader())
+            }, 1000)
         }
     }
-
-    useEffect(() => {
-        if (inCountdown) {
-            if (countdownTime <= 0) {
-                dispatch(hideUploader())
-            } else {
-                setTimeout(() => {
-                    setCountdownTime(val => val - 1)
-                }, 1000)
-            }
-        }
-    }, [inCountdown, countdownTime, dispatch])
 
     useEffect(() => {
         const handleClickDocument = (e: MouseEvent) => {
@@ -351,7 +355,7 @@ export default function VideoUpload() {
                     <div className="flex flex-col min-w-[64rem] gap-y-3">
                         <div className="w-full flex flex-row items-center px-6 py-4 gap-x-10 text-base rounded-xl shadow-lg bg-white">
                             <div className="basis-5/6 flex flex-row gap-x-6 items-center">
-                                <p className="font-light">File <span className="font-semibold ml-2">{videoFile.name}</span></p>
+                                <p className="font-light w-1/2">File <span className="font-semibold ml-2">{videoFile.name}</span></p>
                                 <p className="font-light">Size <span className="font-semibold ml-2">{convertSize(videoFile.size)}</span></p>
                                 <p className="font-light">Duration <span className="font-semibold ml-2">{convertDuration(duration)}</span></p>
                             </div>
@@ -370,8 +374,8 @@ export default function VideoUpload() {
                                     <textarea id="description" rows={6} name="description" placeholder="Describe your video here..." className="bg-gray-100 rounded-lg p-4 overflow-y-auto" onChange={() => { setDescError('') }}></textarea>
                                     {descError && <span className="absolute top-0 right-0 p-2 text-red-500 text-sm">{descError}</span>}
                                 </div>
-                                <div className="flex flex-col">
-                                    <label htmlFor="category" className="font-semibold m-2">Categories</label>
+                                <div className="flex flex-row m-2 items-center">
+                                    <label htmlFor="category" className="font-semibold">Categories</label>
                                     <div className="relative flex flex-row items-center gap-x-4 h-10">
                                         <div>
                                             {
@@ -385,9 +389,9 @@ export default function VideoUpload() {
                                         {
                                             addingCategory &&
                                             <div className="relative" ref={categoryInputDivRef}>
-                                                <input ref={categoryInputRef} className="p-2 focus:outline-none focus:border-none" onChange={eh.onTagInputChange} autoFocus />
+                                                <input ref={categoryInputRef} className="p-2 focus:outline-none focus:border-none" autoFocus onChange={eh.onTagInputChange} onKeyDown={eh.onCategoryInputKeydown} />
                                                 <hr />
-                                                <div className="absolute top-0 left-0 mt-2 transform translate-y-10 z-10 font-light max-h-80 w-full rounded-lg overflow-auto bg-neutral-100">
+                                                <div className="absolute top-0 left-0 mt-2 transform translate-y-10 z-10 font-light max-h-80 w-full rounded-lg overflow-auto bg-white">
                                                     {
                                                         fuzzyTags.map(name => (
                                                             <a key={tagMap[name.toLowerCase()].id} className="block hover:bg-blue-200 px-2 py-1 hover:cursor-pointer text-sm" onClick={eh.onCategoryClicked}>{name}</a>
@@ -413,7 +417,7 @@ export default function VideoUpload() {
                                     {
                                         !chooseCover &&
                                         <div className="relative mt-2">
-                                            <NextImage src={getVideoThumbanil()} width={thumbnailWidth} height={thumbnailHeight} alt="video-thumbnail" className="rounded-xl" />
+                                            <NextImage src={getVideoThumbanil()} width={thumbnailWidth} height={thumbnailHeight} alt="video-thumbnail" className="rounded-xl w-96 h-64" />
                                         </div>
                                     }
                                     {
@@ -429,10 +433,19 @@ export default function VideoUpload() {
                                             <RxCrossCircled size={20} className="absolute top-2 left-2 hover:cursor-pointer" onClick={() => { setChooseCover(false) }} />
                                         </div>
                                     }
-                                    <div className="flex flex-row absolute bottom-0 right-0 gap-x-2">
-                                        <button type="submit" className="py-2 px-4 bg-red-600 text-white rounded-lg">Submit</button>
-                                        <button type="button" className="py-2 px-4 bg-gray-600 text-white rounded-lg" onClick={eh.onCancel}>Cancel</button>
-                                    </div>
+                                    {
+                                        !submiting &&
+                                        <div className="flex flex-row absolute bottom-0 right-0 gap-x-2">
+                                            <button type="submit" className="py-2 px-4 bg-red-600 text-white rounded-lg">Submit</button>
+                                            <button type="button" className="py-2 px-4 bg-gray-600 text-white rounded-lg" onClick={eh.onCancel}>Cancel</button>
+                                        </div>
+                                    }
+                                    {
+                                        submiting &&
+                                        <div className="flex flex-row absolute bottom-0 right-0 gap-x-2">
+                                            <button type="button" className="py-2 px-4 bg-red-400 text-white rounded-lg hover:cursor-pointer">Loading...</button>
+                                        </div>
+                                    }
                                 </div>
                             </form>
                         }
@@ -475,12 +488,6 @@ export default function VideoUpload() {
                                         </div>
                                     </>
                                 }
-                                {
-                                    phase === 4 &&
-                                    <div className="">
-                                        <span className="font-semibold">Finished, will close in {countdownTime} seconds</span>
-                                    </div>
-                                }
                             </div>
                         }
                     </div>
@@ -495,8 +502,7 @@ async function extractThumbnail(videoFile: File): Promise<{ dataURL: string, dur
     video.src = URL.createObjectURL(videoFile);
     video.muted = true;
     video.addEventListener('loadeddata', () => {
-        // Set the time to the desired frame (e.g., 5 seconds)
-        video.currentTime = 5;
+        video.currentTime = 2;
     });
 
     const canvas = document.createElement('canvas')

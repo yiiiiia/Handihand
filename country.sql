@@ -238,10 +238,7 @@ VALUES
     ('UG', 'Uganda'),
     ('UA', 'Ukraine'),
     ('AE', 'United Arab Emirates'),
-    (
-        'GB',
-        'United Kingdom of Great Britain and Northern Ireland'
-    ),
+    ('GB', 'United Kingdom'),
     ('US', 'United States of America'),
     ('UY', 'Uruguay'),
     ('UZ', 'Uzbekistan'),

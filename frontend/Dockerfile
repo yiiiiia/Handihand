@@ -25,6 +25,10 @@ COPY --from=deps /app/node_modules ./node_modules
 
 COPY . .
 
+RUN chown -R node:node /app
+
+USER node
+
 RUN yarn prisma generate
 
 COPY .env.production .env.production
@@ -32,12 +36,6 @@ COPY .env.production .env.production
 RUN yarn run build
 
 ENV NODE_ENV=production
-
-RUN addgroup -g 1001 -S nodejs
-
-RUN adduser -S nextjs -u 1001
-
-USER nextjs
 
 EXPOSE 3000
 

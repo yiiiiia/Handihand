@@ -10,17 +10,12 @@ import { FaRegStar, FaStar } from "react-icons/fa";
 import { FaCircleCheck, FaRegCirclePlay } from "react-icons/fa6";
 import { IoIosSend, IoMdHeart, IoMdHeartEmpty } from "react-icons/io";
 import { SessionContext } from "../SessionProvider";
+import Link from "next/link";
+import BusyModal from "./BusyModal";
 
 export default function Cards() {
     const searchParams = useAppSelector(selectSearchParams)
-    const {
-        data,
-        isLoading,
-        // isSuccess,
-        // isError,
-        // error
-    } = useGetVideosQuery(searchParams)
-
+    const { data, isLoading } = useGetVideosQuery(searchParams)
     const sortedVideos = useMemo(() => {
         let sortedVideos: Video[] = []
         if (data?.videos) {
@@ -62,19 +57,19 @@ export default function Cards() {
 
     return (
         <>
-            <div className="grid grid-cols-4 gap-y-8 3xl:grid-cols-5 place-items-center">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 3xl:grid-cols-5">
                 {
                     sortedVideos.map(video => {
                         return (
-                            <div key={video.id} className="p-4 rounded-lg flex flex-col gap-y-2 w-[360px]">
+                            <div key={video.id} className="p-4 rounded-lg flex flex-col gap-y-2">
                                 <div className="relative hover:cursor-pointer" onClick={() => { eh.onVideoDisplay(video.id) }}>
-                                    <Image src={video.thumbnailURL} height={1200} width={1200} alt="video-thumbnail" className="rounded-2xl" />
+                                    <Image src={video.thumbnailURL} height={300} width={400} alt="video-thumbnail" className="rounded-xl" />
                                     <FaRegCirclePlay size={40} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
                                 </div>
                                 <div className="flex flex-row gap-x-2">
-                                    <Image src={video.profile.photo ?? '/owl.jpg'} width={900} height={900} alt="avatar" className="rounded-full w-10 h-10" />
-                                    <div className="flex flex-col">
-                                        <p className="text-base font-semibold overflow-hide h-16">{video.description}</p>
+                                    <Image src={video.profile.photo ?? '/owl.jpg'} width={1500} height={1500} alt="avatar" className="rounded-full w-10 h-10" />
+                                    <div className="flex flex-col h-16">
+                                        <p className="text-base font-semibold overflow-hidden">{video.title}</p>
                                         <p className="text-sm">{video.profile.username}<FaCircleCheck size={13} className="inline ml-2" /></p>
                                     </div>
                                 </div>
@@ -92,7 +87,8 @@ export default function Cards() {
 }
 
 function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo: Dispatch<SetStateAction<Video | null>> }) {
-    const session = useContext(SessionContext)
+    const sctx = useContext(SessionContext)
+    const session = sctx?.session
     const accountId = session?.account?.id ?? -1
 
     const { data: getLikesData } = useGetLikesQuery({ accountId: accountId, videoId: video.id })
@@ -105,13 +101,20 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
     const [animation, setAnimation] = useState('animate-fadeIn')
     const [commentFocused, setCommentFocused] = useState(false)
     const [commentContent, setCommentContent] = useState('')
+    const [remindLogin, setRemindLogin] = useState(false)
+    const [showSpinner, setShowSpinner] = useState(false)
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const smallTextAreaRef = useRef<HTMLTextAreaElement>(null)
     const videoDivRef = useRef<HTMLDivElement>(null)
     const textAreaDivRef = useRef<HTMLDivElement>(null)
+    const skipRef = useRef(null)
 
     const eh = {
         handleLikeClicked: async () => {
+            if (accountId === -1) {
+                setRemindLogin(true)
+                return
+            }
             if (getLikesData?.hasLiked) {
                 await postLike({ videoId: video.id, accountId: accountId, reqType: 'remove' }).unwrap()
             } else if (accountId > 0) {
@@ -120,6 +123,10 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
         },
 
         handleSaveClicked: async () => {
+            if (accountId === -1) {
+                setRemindLogin(true)
+                return
+            }
             if (getSavesData?.hasSaved) {
                 await postSave({ videoId: video.id, accountId: accountId, reqType: 'remove' }).unwrap()
             } else if (accountId > 0) {
@@ -169,6 +176,9 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
 
     useEffect(() => {
         const handleClickDocument = (e: MouseEvent) => {
+            if (e.target && e.target == skipRef.current) {
+                return
+            }
             if (videoDivRef.current && e.target) {
                 if (!videoDivRef.current.contains(e.target as HTMLElement)) {
                     setAnimation('animate-fadeOut')
@@ -192,11 +202,14 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
 
     return (
         <div className={"fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-80 " + animation}>
-            <div ref={videoDivRef} className="relative flex flex-row gap-x-4 bg-stone-200 p-10 rounded-lg h-5/6">
-                <video controls className="rounded-md bg-white w-[1000px] 3xl:w-[1600px]">
-                    <source src={video.uploadURL} />
-                </video>
-                <div className="flex flex-col rounded-xl w-[300px] 3xl:w-[400px]">
+            <div ref={videoDivRef} className="relative flex flex-row gap-x-4 bg-gray-50 p-10 rounded-lg">
+                <div className="flex flex-col gap-y-2 max-w-full w-[880px] 3xl:w-[1080px]">
+                    <video controls className="rounded-md bg-white">
+                        <source src={video.uploadURL} />
+                    </video>
+                    <p className="max-h-36 overflow-auto bg-stone-200 p-4 rounded-md text-sm">{video.description}</p>
+                </div>
+                <div className="flex flex-col rounded-xl max-w-full w-[260px] 3xl:w-[300px]">
                     <div className="flex flex-col gap-y-2">
                         <div className="flex flex-row gap-x-2 justify-between items-center">
                             <p><Image src={video.profile.photo ?? '/owl.jpg'} width={50} height={10} alt="avatar" className="rounded-full inline" /> {video.profile.username}</p>
@@ -224,7 +237,14 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
                     </div>
                     <div className="flex flex-col justify-end mt-2">
                         {
-                            commentFocused &&
+                            !session &&
+                            <div className="relative">
+                                <textarea disabled rows={1} cols={10} placeholder="Comment..." className="py-2 pl-2 pr-5 rounded-lg overflow-hidden w-full" onClick={() => { setRemindLogin(true) }} />
+                                <IoIosSend size={25} className="absolute bottom-0 right-2 transform -translate-y-1/2 text-gray-400" />
+                            </div>
+                        }
+                        {
+                            session && commentFocused &&
                             <div ref={textAreaDivRef} className="relative" >
                                 <textarea ref={textareaRef} autoFocus disabled={isPostCommentLoading} rows={10} cols={10} placeholder="Comment..."
                                     className="py-2 pl-2 pr-5 rounded-lg overflow-hidden w-full absolute bottom-0 z-10" defaultValue={commentContent} onChange={eh.handleCommentOnChange} />
@@ -232,7 +252,7 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
                             </div>
                         }
                         {
-                            !commentFocused &&
+                            session && !commentFocused &&
                             <div className="relative">
                                 <textarea ref={smallTextAreaRef} rows={1} cols={10} placeholder="Comment..." className="py-2 pl-2 pr-5 rounded-lg overflow-hidden w-full" defaultValue={commentContent} onFocus={eh.handleCommentFocused} />
                                 {
@@ -276,6 +296,28 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
                     </div>
                 </div>
             </div>
+            {
+                showSpinner &&
+                <BusyModal />
+            }
+            {
+                remindLogin &&
+                <div className="fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-70 py-10 z-10">
+                    <div className="max-h-full max-w-7xl overflow-auto sm:rounded-2xl">
+                        <div className='grid place-content-center bg-white w-[40rem] h-[30rem]'>
+                            <div className="mb-8">
+                                <h1 className="mb-4 text-3xl font-extrabold">You haven&apos;t logged in</h1>
+                            </div>
+                            <div className="space-y-4">
+                                <Link href="/auth/signin">
+                                    <button className="p-3 bg-black rounded-full text-white w-full font-semibold" onClick={() => { setShowSpinner(true) }}>Log in</button>
+                                </Link>
+                                <button ref={skipRef} className="p-3 bg-gray-200 border rounded-full w-full font-semibold" onClick={() => { setRemindLogin(false) }}>Skip for now</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         </div>
     )
 }

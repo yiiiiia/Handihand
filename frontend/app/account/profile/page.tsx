@@ -5,19 +5,20 @@ import { ProfileUpdateResult } from "@/app/api/profile/route";
 import { CountryContext } from "@/app/CountryProvider";
 import { SessionContext } from "@/app/SessionProvider";
 import ImageUpload from "@/app/ui/ImageUpload";
-import { Nullable } from "@/lib/db/entities";
+import { Nullable, Profile } from "@/lib/db/entities";
 import { useGetUploadedVideosQuery } from "@/lib/features/searcher/searcher";
 import { Fzf } from 'fzf';
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChangeEvent, ChangeEventHandler, FocusEvent, FocusEventHandler, FormEvent, RefObject, useContext, useEffect, useRef, useState } from "react";
+import React, { ChangeEvent, ChangeEventHandler, FocusEventHandler, FormEvent, KeyboardEventHandler, MouseEventHandler, RefObject, useContext, useEffect, useRef, useState } from "react";
 import { CiEdit } from "react-icons/ci";
 import { GoCheck } from "react-icons/go";
 import { RxCross2 } from "react-icons/rx";
 
-export default function Profile() {
+export default function ProfilePage() {
     const route = useRouter()
-    const session = useContext(SessionContext)
+    const sctx = useContext(SessionContext)
+    const session = sctx?.session
     if (!session) {
         route.push('/error')
     }
@@ -84,12 +85,18 @@ export default function Profile() {
         setFuzzyCountries(items)
     }
 
-    function onInputCountryFocus(e: FocusEvent) {
+    function onInputCountryClick(e: React.MouseEvent) {
         const ele = e.target as HTMLInputElement
         if (ele.value) {
             const entries = fzf.find(ele.value)
             const items = entries.map(e => e.item)
             setFuzzyCountries(items)
+        }
+    }
+
+    function onInputCountryKeydown(e: React.KeyboardEvent) {
+        if (e.key === 'Escape' && fuzzyCountries.length > 0) {
+            setFuzzyCountries([])
         }
     }
 
@@ -127,15 +134,30 @@ export default function Profile() {
                 if (data.ok) {
                     window.location.reload()
                 }
-                setLoading(false)
             })
+    }
+
+    function onPhotoUploadComplete(imageURL: string) {
+        setDataUrl(imageURL)
+        fetch('/api/profile', { method: 'GET' }).then(res => {
+            if (!res.ok) {
+                throw new Error('failed to get profile: ' + res.statusText);
+            }
+            return res.json()
+        }).then((profile: Profile) => {
+            if (sctx && session) {
+                session.profile = profile
+                sctx.setSetssion(session)
+            }
+        }).catch(error => {
+            console.log('fetch to get profile error: ', error)
+        })
     }
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (countryDivRef.current && e.target) {
-                const div = countryDivRef.current
-                if (!div.contains(e.target as HTMLElement)) {
+                if (!countryDivRef.current.contains(e.target as HTMLElement)) {
                     setFuzzyCountries([])
                 }
             }
@@ -254,12 +276,13 @@ export default function Profile() {
                     <FieldEditor label="Username" name="username" placeholder={session?.profile?.username} fieldErr={updateResult?.error?.username?.[0]} />
                     <FieldEditor label="Country" name="country" placeholder={session?.profile?.countryName}
                         onChangeHandler={onInputCountryChange}
-                        onFocusHandler={onInputCountryFocus}
+                        onClickHandler={onInputCountryClick}
+                        onKeydownHandler={onInputCountryKeydown}
                         nodeRef={countryDivRef}
                         inputRef={countryInputRef}
                         fieldErr={updateResult?.error?.countryCode?.[0]}
                     >
-                        <div className="absolute top-0 left-0 ml-4 mt-4 transform translate-y-8 z-10 font-light h-80 overflow-auto bg-neutral-100 rounded-lg">
+                        <div className="absolute top-0 left-0 ml-4 mt-4 transform translate-y-8 z-10 font-light max-h-80 overflow-auto bg-white border rounded-lg">
                             {
                                 fuzzyCountries.map(name => (
                                     <a key={countryMap[name.toLowerCase()]} className="block hover:bg-blue-200 min-w-96 px-4 py-1 rounded-lg hover:cursor-pointer" onClick={onCountryItemClick}>{name}</a>
@@ -287,15 +310,16 @@ export default function Profile() {
                     </div>
                 </form>
             </div>
-            <ImageUpload selectedFile={selectedFile} onUploadComplete={setDataUrl} />
+            <ImageUpload selectedFile={selectedFile} onUploadComplete={onPhotoUploadComplete} />
         </>
     )
 }
 
-function FieldEditor({ label, name, placeholder, id = name, children, nodeRef, onChangeHandler, onFocusHandler, onBlurHandler, inputRef, fieldErr }:
+function FieldEditor({ label, name, placeholder, id = name, children, nodeRef, onChangeHandler, onFocusHandler, onClickHandler, onBlurHandler, onKeydownHandler, inputRef, fieldErr }:
     {
         label: string, name: string, placeholder: Nullable<string>, id?: string, children?: React.ReactNode, nodeRef?: RefObject<HTMLDivElement>,
-        onChangeHandler?: ChangeEventHandler, onFocusHandler?: FocusEventHandler, onBlurHandler?: FocusEventHandler,
+        onChangeHandler?: ChangeEventHandler, onFocusHandler?: FocusEventHandler, onBlurHandler?: FocusEventHandler, onClickHandler?: MouseEventHandler
+        onKeydownHandler?: KeyboardEventHandler
         inputRef?: RefObject<HTMLInputElement>, fieldErr?: string
     }) {
     return (
@@ -306,6 +330,8 @@ function FieldEditor({ label, name, placeholder, id = name, children, nodeRef, o
                     className="py-2 px-4 ml-4 min-w-96 text-xl border rounded-xl focus:outline-none placeholder:text-gray-600"
                     onChange={onChangeHandler}
                     onBlur={onBlurHandler}
+                    onKeyDown={onKeydownHandler}
+                    onClick={onClickHandler}
                     onFocus={onFocusHandler}>
                 </input>
                 {children}

@@ -8,7 +8,8 @@ import { MdVideoSettings } from "react-icons/md";
 import { SessionContext } from "../SessionProvider";
 
 export default function Page() {
-    const session = useContext(SessionContext)
+    const sctx = useContext(SessionContext)
+    const session = sctx?.session
     return (
         <div className="flex flex-col w-4/5 mx-auto">
             <div className="flex flex-col mt-8">

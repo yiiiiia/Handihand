@@ -31,7 +31,8 @@ export default function Nav() {
     const showUploader = useAppSelector(selectShowUploader)
     const searchParams = useAppSelector(selectSearchParams)
 
-    const session = useContext(SessionContext)
+    const sctx = useContext(SessionContext)
+    const session = sctx?.session
     const [fetchVideos] = useLazyGetVideosQuery()
     const [_, purgeSession] = useState(false)
     const [showDropList, setShowDropList] = useState(false)
@@ -196,7 +197,7 @@ export default function Nav() {
                     <div ref={menuDivRef} className="relative inline-block text-left ml-5">
                         <button className="relative flex flex-row gap-x-2 border-2 px-2 rounded-full items-center hover:shadow-md hover:cursor-pointer">
                             <GiHamburgerMenu size={18} />
-                            {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={40} height={40} alt="Picture of Profile" className='rounded-full p-1' /> : <FaUserCircle size={35} className='p-1' />}
+                            {session ? <Image src={session?.profile?.photo ?? '/owl.jpg'} width={38} height={0} alt="Picture of Profile" className='rounded-full p-1' /> : <FaUserCircle size={35} className='p-1' />}
                         </button>
                         {
                             showDropList &&
@@ -209,10 +210,10 @@ export default function Nav() {
                                 }
                                 {
                                     session &&
-                                    <div className="py-2">
-                                        <a href="/account/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account</a>
-                                        <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
-                                        <a href="/api/auth/signout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
+                                    <div className="py-2 text-base">
+                                        <a href="/account/profile" className="block px-4 py-2 text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-0">Account</a>
+                                        <a href="#" className="block px-4 py-2 text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-1">Be a seller</a>
+                                        <a href="/api/auth/signout" className="block px-4 py-2 text-gray-700 hover:bg-stone-200" role="menuitem" tabIndex={-1} id="menu-item-2">Log out</a>
                                     </div>
                                 }
                             </div>

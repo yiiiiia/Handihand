@@ -1,4 +1,5 @@
 import { prismaClient } from "@/lib/db/data-source";
+import { PostPhotoMeta, PostVideoMeta } from "@/lib/features/searcher/searcher";
 import { logger } from "@/lib/logger";
 import { getSession } from "@/lib/session";
 import { getFileExtension, randToken } from "@/lib/util";
@@ -17,64 +18,41 @@ const googleStorage = new Storage({
     projectId: process.env.GOOGLE_CLOUD_PROJECT_ID
 })
 
-const imageFolder = 'image'
+const dirImage = 'image'
+const dirVideo = 'video'
 
-const videoFolder = 'video'
-
-export type ImageUploadResult = {
-    imageURL: string
+export interface PostGetSignedURL {
+    videoName: string;
+    videoType: string;
+    imageName: string;
+    imageType: string;
 }
 
-export type SignedURLResult = {
-    video: {
-        signedURL: string;
-        mimeType: string;
-        dest: string;
-    },
-    image: {
-        signedURL: string,
-        mimeType: string;
-        dest: string;
-    }
+export interface SignedURLResp {
+    videoSignedURL: string;
+    imageSignedURL: string,
+    videoDest: string,
+    imageDest: string,
 }
 
-const globalUploadingResult: Record<string, boolean> = {}
 
 async function handler(req: NextRequest, { params }: { params: { action: string } }) {
-    if (req.method === 'POST' && params.action === 'image') {
-        return handleImageUpload(req)
+    if (req.method === 'POST' && params.action === 'signedURL') {
+        return getSignedUploadURL(req)
     }
-
-    if (req.method === 'POST' && params.action === 'video') {
-        return genVideoUploadSignedURL(req)
-    }
-
     if (req.method === 'POST' && params.action === 'updates') {
-        if (req.nextUrl.searchParams.get('type') === 'video') {
+        const searchParams = req.nextUrl.searchParams
+        if (searchParams.get('type') === 'video') {
             return handleVideoUpdates(req)
         }
-        if (req.nextUrl.searchParams.get('type') === 'image') {
+        if (searchParams.get('type') === 'photo') {
             return handleImageUpdates(req)
         }
     }
-
-    if (req.method === 'GET' && params.action === 'check_status') {
-        const searchParams = req.nextUrl.searchParams
-        const token = searchParams.get('token')
-        if (!token) {
-            return new Response('', { status: StatusCodes.BAD_REQUEST })
-        }
-        if (globalUploadingResult[token]) {
-            delete globalUploadingResult[token]
-            return Response.json({ status: 'ok' })
-        }
-        return Response.json({ status: 'processing' })
-    }
-
     notFound()
 }
 
-async function genVideoUploadSignedURL(req: NextRequest) {
+async function getSignedUploadURL(req: NextRequest) {
     const session = await getSession()
     if (!session) {
         redirect('/error')
@@ -86,82 +64,93 @@ async function genVideoUploadSignedURL(req: NextRequest) {
         redirect('/error')
     }
 
-    const formData = await req.formData()
-    if (!formData) {
-        return new Response('no form data', { status: StatusCodes.BAD_REQUEST })
-    }
-
-    const videoName = formData.get('videoName') as string
-    if (!videoName) {
-        return new Response('missing videoName', { status: StatusCodes.BAD_REQUEST })
-    }
-    const videoType = formData.get('videoType') as string
-    if (!videoType) {
-        return new Response('missing videoType', { status: StatusCodes.BAD_REQUEST })
-    }
-    if (!videoType.startsWith("video/")) {
-        return new Response('wrong videoType', { status: StatusCodes.BAD_REQUEST })
-    }
-    const videoExt = getFileExtension(videoType)
-    if (!videoExt) {
-        return new Response(`unsupported video type ${videoType}`, { status: StatusCodes.BAD_REQUEST })
-    }
-
-    const imageType = formData.get('imageType') as string
-    if (!imageType) {
-        return new Response('missing imageType', { status: StatusCodes.BAD_REQUEST })
-    }
-    if (!imageType.startsWith("image/")) {
-        return new Response('wrong imageType', { status: StatusCodes.BAD_REQUEST })
-    }
-    const imageExt = getFileExtension(imageType)
-    if (!imageExt) {
-        return new Response(`unsupported image type ${imageType}`, { status: StatusCodes.BAD_REQUEST })
-    }
-
     const expiresInSeconds = 60 * 60
     const bucket = googleStorage.bucket(bucketName)
-    const videoDest = getDestFileLocation(videoFolder, videoName, videoExt)
-
-    let thumbnailName = ''
-    if (videoName.lastIndexOf('.') === -1) {
-        thumbnailName = videoName + "-thumbnail"
-    } else {
-        thumbnailName = videoName.substring(0, videoName.lastIndexOf('.')) + '-thumbnail'
-    }
-    const imageDest = getDestFileLocation(imageFolder, thumbnailName, imageExt)
-
-    const [videoSignedURL] = await bucket.file(videoDest).getSignedUrl({
-        version: "v4",
-        action: "write",
-        expires: Date.now() + expiresInSeconds * 1000,
-        contentType: videoType,
-    })
-    const [imageSignedURL] = await bucket.file(imageDest).getSignedUrl({
-        version: "v4",
-        action: "write",
-        expires: Date.now() + expiresInSeconds * 1000,
-        contentType: imageType,
-    })
-    const result: SignedURLResult = {
-        video: {
-            signedURL: videoSignedURL,
-            mimeType: videoType,
-            dest: videoDest,
-        },
-        image: {
-            signedURL: imageSignedURL,
-            mimeType: imageType,
-            dest: imageDest
+    const searchParams = req.nextUrl.searchParams
+    if (searchParams.get('for') === 'video') {
+        const reqData: PostGetSignedURL = await req.json()
+        const { videoName, videoType, imageType } = reqData
+        if (!videoName || !videoType || !imageType) {
+            return new Response(JSON.stringify({ error: "missing request params" }), { status: StatusCodes.BAD_REQUEST })
         }
+        if (!videoType.startsWith("video/")) {
+            return new Response(JSON.stringify({ error: 'wrong video type' }), { status: StatusCodes.BAD_REQUEST })
+        }
+        const videoExt = getFileExtension(videoType)
+        if (!videoExt) {
+            return new Response(JSON.stringify({ error: `unsupported video type ${videoType}` }), { status: StatusCodes.BAD_REQUEST })
+        }
+        if (!imageType.startsWith("image/")) {
+            return new Response(JSON.stringify({ error: 'wrong imageType' }), { status: StatusCodes.BAD_REQUEST })
+        }
+        const imageExt = getFileExtension(imageType)
+        if (!imageExt) {
+            return new Response(JSON.stringify({ error: `unsupported image type ${imageType}` }), { status: StatusCodes.BAD_REQUEST })
+        }
+        const videoDest = getFileDest(dirVideo, videoName, videoExt)
+
+        let imageName = ''
+        if (videoName.lastIndexOf('.') === -1) {
+            imageName = videoName + "-thumbnail"
+        } else {
+            imageName = videoName.substring(0, videoName.lastIndexOf('.')) + '-thumbnail'
+        }
+        const imageDest = getFileDest(dirImage, imageName, imageExt)
+
+        const [videoSignedURL] = await bucket.file(videoDest).getSignedUrl({
+            version: "v4",
+            action: "write",
+            expires: Date.now() + expiresInSeconds * 1000,
+            contentType: videoType,
+        })
+        const [imageSignedURL] = await bucket.file(imageDest).getSignedUrl({
+            version: "v4",
+            action: "write",
+            expires: Date.now() + expiresInSeconds * 1000,
+            contentType: imageType,
+        })
+        return Response.json({
+            videoSignedURL: videoSignedURL,
+            imageSignedURL: imageSignedURL,
+            videoDest: videoDest,
+            imageDest: imageDest,
+        })
     }
-    return Response.json(result)
+    if (searchParams.get('for') === 'photo') {
+        const reqData: PostGetSignedURL = await req.json()
+        const imageName = reqData.imageName
+        const imageType = reqData.imageType
+        if (!imageName || !imageType) {
+            return new Response(JSON.stringify({ error: 'missing request parameters' }), { status: StatusCodes.BAD_REQUEST })
+        }
+        if (!imageType.startsWith('image/')) {
+            return new Response(JSON.stringify({ error: 'wrong image type' }), { status: StatusCodes.BAD_REQUEST })
+        }
+        const imageExt = getFileExtension(imageType)
+        if (!imageExt) {
+            return new Response(JSON.stringify({ error: `unsupported image type: ${imageType}` }), { status: StatusCodes.BAD_REQUEST })
+        }
+
+        const imageDest = getFileDest(dirImage, imageName, imageExt)
+        const [imageSignedURL] = await bucket.file(imageDest).getSignedUrl({
+            version: "v4",
+            action: "write",
+            expires: Date.now() + expiresInSeconds * 1000,
+            contentType: imageType,
+        })
+        return Response.json({
+            imageSignedURL: imageSignedURL,
+            imageDest: imageDest,
+        })
+    }
+
+    return new Response('', { status: StatusCodes.NOT_FOUND })
 }
 
 async function handleVideoUpdates(req: NextRequest) {
     const session = await getSession()
     if (!session?.account?.id) {
-        logger.error(`missing account db id in session: ${session}`)
+        logger.error(`missing account database id in session: ${session}`)
         redirect('/error')
     }
     if (!session.profile) {
@@ -176,58 +165,44 @@ async function handleVideoUpdates(req: NextRequest) {
 
     const accountId = session.account.id
     const countryCode = session.profile.countryCode ?? ''
-    const formData = await req.formData()
-    const title = formData.get('title') as string
-    if (!title || !title.trim()) {
-        return new Response('title is required', { status: StatusCodes.BAD_REQUEST })
+    let meta: PostVideoMeta = await req.json()
+    if (!meta.title) {
+        return new Response(JSON.stringify({ error: 'title is required' }), { status: StatusCodes.BAD_REQUEST })
     }
-    const description = formData.get('description') as string
-    if (!description || !description.trim()) {
-        return new Response('description is required', { status: StatusCodes.BAD_REQUEST })
+    if (!meta.description) {
+        return new Response(JSON.stringify({ error: 'description is required' }), { status: StatusCodes.BAD_REQUEST })
     }
-    const name = formData.get('name') as string
-    if (!name || !name.trim()) {
-        return new Response('name is required', { status: StatusCodes.BAD_REQUEST })
+    if (!meta.name) {
+        return new Response(JSON.stringify({ error: 'video name is required' }), { status: StatusCodes.BAD_REQUEST })
     }
-    const type = formData.get('type') as string
-    if (!type || !type.trim()) {
-        return new Response('type is required', { status: StatusCodes.BAD_REQUEST })
+    if (!meta.type) {
+        return new Response(JSON.stringify({ error: 'video type is required' }), { status: StatusCodes.BAD_REQUEST })
     }
-    const size = formData.get('size') as string
-    if (!size || !size.trim()) {
-        return new Response('size is required', { status: StatusCodes.BAD_REQUEST })
+    if (!meta.size) {
+        return new Response(JSON.stringify({ error: 'video size is required' }), { status: StatusCodes.BAD_REQUEST })
     }
-    const videoDest = formData.get('videoDest') as string
-    if (!videoDest || !videoDest.trim()) {
-        return new Response('videoDest is required', { status: StatusCodes.BAD_REQUEST })
+    if (!meta.videoDest) {
+        return new Response(JSON.stringify({ error: 'videoDest is required' }), { status: StatusCodes.BAD_REQUEST })
     }
-    const imageDest = formData.get('imageDest') as string
-    if (!imageDest || !imageDest.trim()) {
-        return new Response('imageDest is required', { status: StatusCodes.BAD_REQUEST })
+    if (!meta.thumbnailDest) {
+        return new Response(JSON.stringify({ error: 'thumbnailDest is required' }), { status: StatusCodes.BAD_REQUEST })
     }
 
-    const tags: string[] = []
-    formData.getAll('tags').forEach(item => {
-        tags.push(item as string)
-    })
-
-    const sizeInt = parseInt(size)
     const dbVideo = await prismaClient.video.create({
         data: {
             account_id: accountId,
             country_code: countryCode,
-            title: title,
-            description: description,
-            name: name,
-            type: type,
-            size: sizeInt,
-            upload_url: getObjectURL(bucketName, videoDest),
-            thumbnail_url: getObjectURL(bucketName, imageDest),
+            title: meta.title,
+            description: meta.description,
+            name: meta.name,
+            type: meta.type,
+            size: meta.size,
+            upload_url: getObjectURL(bucketName, meta.videoDest),
+            thumbnail_url: getObjectURL(bucketName, meta.thumbnailDest),
             updated_at: new Date()
         }
     })
-    tags.forEach(async e => {
-        const word = e as string
+    meta.tags.forEach(async word => {
         const dbTag = await prismaClient.tag.findUnique({ where: { word: word } })
         if (dbTag) {
             await prismaClient.video_tag.create({
@@ -236,11 +211,8 @@ async function handleVideoUpdates(req: NextRequest) {
                     tag_id: dbTag.id
                 }
             })
-        } else {
-            logger.warn('got unknown tag: ${word}')
         }
     })
-
     return new Response()
 }
 
@@ -275,7 +247,7 @@ async function handleImageUpload(req: Request) {
 
     const expiresInSeconds = 60 * 60
     const bucket = googleStorage.bucket(bucketName)
-    const imageDest = getDestFileLocation(imageFolder, imageName, imageExt)
+    const imageDest = getFileDest(dirImage, imageName, imageExt)
     const [imageSignedURL] = await bucket.file(imageDest).getSignedUrl({
         version: "v4",
         action: "write",
@@ -305,13 +277,11 @@ async function handleImageUpdates(req: Request) {
     }
 
     const profileId = session.profile.id
-    const formData = await req.formData()
-    const imageDest = formData.get('imageDest') as string
-    if (!imageDest || !imageDest.trim()) {
-        return new Response('imageDest is required', { status: StatusCodes.BAD_REQUEST })
+    const reqData: PostPhotoMeta = await req.json()
+    if (!reqData.photoDest) {
+        return new Response('photoDest is required', { status: StatusCodes.BAD_REQUEST })
     }
-
-    const photoURL = getObjectURL(bucketName, imageDest)
+    const photoURL = getObjectURL(bucketName, reqData.photoDest)
     await prismaClient.profile.update({
         where: { id: profileId },
         data: {
@@ -322,7 +292,7 @@ async function handleImageUpdates(req: Request) {
     return new Response()
 }
 
-function getDestFileLocation(folderPath: string, filename: string, extension: string): string {
+function getFileDest(folderPath: string, filename: string, extension: string): string {
     let name = ''
     if (filename.lastIndexOf('.') === -1) {
         name = filename

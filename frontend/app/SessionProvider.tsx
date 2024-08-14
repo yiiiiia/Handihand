@@ -1,13 +1,19 @@
 'use client'
 
-import { Nullable, Session } from "@/lib/db/entities";
-import { createContext } from "react";
+import { Session } from "@/lib/db/entities";
+import { createContext, Dispatch, SetStateAction, useState } from "react";
 
-export const SessionContext = createContext<Nullable<Session>>(null)
+export type SessionCtx = {
+    session: Session | null
+    setSetssion: Dispatch<SetStateAction<Session | null>>
+} | null
 
-export default function SessionProvider({ session, children }: { session: Nullable<Session>, children: React.ReactNode }) {
+export const SessionContext = createContext<SessionCtx>(null)
+
+export default function SessionProvider({ session, children }: { session: Session | null, children: React.ReactNode }) {
+    const [value, setValue] = useState(session)
     return (
-        <SessionContext.Provider value={session}>
+        <SessionContext.Provider value={{ session: value, setSetssion: setValue }}>
             {children}
         </SessionContext.Provider>
     )

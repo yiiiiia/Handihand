@@ -25,7 +25,7 @@ export async function newSession(account_id: number) {
     })
 }
 
-export async function getSession(): Promise<Nullable<Session>> {
+export async function getSession(): Promise<Session | null> {
     const sessionCookie = cookies().get(COOKIE_SESSION)
     if (!sessionCookie) {
         return null;

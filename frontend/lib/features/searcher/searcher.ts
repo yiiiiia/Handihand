@@ -1,5 +1,5 @@
 import { createAppSlice } from "@/lib/createAppSlice";
-import { Tag, Video } from "@/lib/db/entities";
+import { Profile, Tag, Video } from "@/lib/db/entities";
 import { PayloadAction } from "@reduxjs/toolkit";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
@@ -111,13 +111,35 @@ export interface PostComment {
     comment: string
 }
 
+export interface UploadingSignedURLResp {
+    videoSignedURL: string;
+    videoDest: string;
+    imageSignedURL: string;
+    imageDest: string;
+}
+
+export interface PostVideoMeta {
+    title: string;
+    description: string;
+    name: string;
+    type: string;
+    size: number;
+    videoDest: string;
+    thumbnailDest: string;
+    tags: string[];
+}
+
+export interface PostPhotoMeta {
+    photoDest: string;
+}
+
 export const searchApiSlice = createApi({
     baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
     reducerPath: 'searchApi',
-    tagTypes: ["likes", "saves", 'comments'],
+    tagTypes: ["likes", "saves", 'comments', 'videos'],
     endpoints: (build) => ({
         getVideos: build.query<SearchVideoResponse, SearchParams>({
-            query({ searchBy, country, keyword, tags, pageNumber, pageSize }) {
+            query: ({ searchBy, country, keyword, tags, pageNumber, pageSize }) => {
                 if (pageNumber <= 0) {
                     pageNumber = 1
                 }
@@ -128,6 +150,7 @@ export const searchApiSlice = createApi({
                 const qstr = `/videos/all?searchBy=${searchBy}&countryCode=${country}&keyword=${keyword}&tags=${qtag}&pageNumber=${pageNumber}&pageSize=${pageSize}`
                 return encodeURI(qstr)
             },
+            providesTags: ['videos']
         }),
 
         getUploadedVideos: build.query<SearchMyUploadedVideosResponse, void>({
@@ -151,6 +174,23 @@ export const searchApiSlice = createApi({
         getComments: build.query<CommentInfo[], number>({
             query: (videoId: number) => `/comments?videoId=${videoId}`,
             providesTags: ['comments'],
+        }),
+
+        postVideoMeta: build.mutation<void, PostVideoMeta>({
+            query: meta => ({
+                url: '/upload/updates?type=video',
+                method: 'post',
+                body: meta
+            }),
+            invalidatesTags: ['videos']
+        }),
+
+        postPhotoMeta: build.mutation<void, PostPhotoMeta>({
+            query: meta => ({
+                url: '/upload/updates?type=photo',
+                method: 'post',
+                body: meta
+            }),
         }),
 
         postLike: build.mutation<void, PostLike>({
@@ -184,5 +224,5 @@ export const searchApiSlice = createApi({
 
 export const {
     useLazyGetVideosQuery, useGetVideosQuery, useGetUploadedVideosQuery, useGetTagsQuery, useGetLikesQuery, useGetSavesQuery,
-    usePostLikeMutation, usePostSaveMutation, useGetCommentsQuery, usePostCommentMutation
+    usePostLikeMutation, usePostSaveMutation, useGetCommentsQuery, usePostCommentMutation, usePostVideoMetaMutation, usePostPhotoMetaMutation
 } = searchApiSlice
