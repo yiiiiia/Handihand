@@ -70,7 +70,7 @@ export default function Cards() {
                                     <Image src={video.profile.photo ?? '/owl.jpg'} width={1500} height={1500} alt="avatar" className="rounded-full w-10 h-10" />
                                     <div className="flex flex-col h-16">
                                         <p className="text-base font-semibold overflow-hidden">{video.title}</p>
-                                        <p className="text-sm">{video.profile.username}<FaCircleCheck size={13} className="inline ml-2" /></p>
+                                        <p className="text-sm">{video.profile.username}</p>
                                     </div>
                                 </div>
                             </div>
@@ -207,7 +207,7 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
                     <video controls className="rounded-md bg-white">
                         <source src={video.uploadURL} />
                     </video>
-                    <p className="max-h-36 overflow-auto bg-stone-200 p-4 rounded-md text-sm">{video.description}</p>
+                    <p className="max-h-36 overflow-auto bg-stone-200 p-4 rounded-md text-sm" style={{ whiteSpace: "pre-line" }} >{video.description}</p>
                 </div>
                 <div className="flex flex-col rounded-xl max-w-full w-[260px] 3xl:w-[300px]">
                     <div className="flex flex-col gap-y-2">
