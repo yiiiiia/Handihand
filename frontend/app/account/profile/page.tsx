@@ -67,7 +67,7 @@ export default function ProfilePage() {
     }
 
     async function onEdit() {
-        await fetch('/api/csrf').catch(err => { console.log('failed to requets csrf:', err) })
+        await fetch('/api/csrf').catch(err => { throw new Error(`failed to requets csrf, error: ${err}`) })
         setEditing(true)
     }
 
@@ -150,7 +150,7 @@ export default function ProfilePage() {
                 sctx.setSetssion(session)
             }
         }).catch(error => {
-            console.log('fetch to get profile error: ', error)
+            throw new Error(`failed to fetch profile, error: ${error}`)
         })
     }
 

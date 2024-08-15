@@ -50,7 +50,7 @@ async function handleEmailCallback(req: NextRequest) {
     const timePassed = Math.abs(Date.now() - dbToken.created_at.getTime())
     if (timePassed > validityPeriod && account.state === WAIT_VERIFICATION) {
         // redirect to the email verification page
-        redirect(`/auth/verify?email=${email}&expired`)
+        redirect(`/auth/verify?email=${email}&expired=true`)
     }
     if (account.state === WAIT_VERIFICATION) {
         await prismaClient.account.update({

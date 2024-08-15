@@ -4,13 +4,13 @@ import { Video } from "@/lib/db/entities";
 import { selectSearchParams, useGetCommentsQuery, useGetLikesQuery, useGetSavesQuery, useGetVideosQuery, usePostCommentMutation, usePostLikeMutation, usePostSaveMutation } from "@/lib/features/searcher/searcher";
 import { useAppSelector } from "@/lib/hooks";
 import Image from 'next/image';
+import Link from "next/link";
 import { Dispatch, SetStateAction, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BsFillChatDotsFill } from "react-icons/bs";
 import { FaRegStar, FaStar } from "react-icons/fa";
-import { FaCircleCheck, FaRegCirclePlay } from "react-icons/fa6";
+import { FaRegCirclePlay } from "react-icons/fa6";
 import { IoIosSend, IoMdHeart, IoMdHeartEmpty } from "react-icons/io";
 import { SessionContext } from "../SessionProvider";
-import Link from "next/link";
 import BusyModal from "./BusyModal";
 
 export default function Cards() {
@@ -57,19 +57,19 @@ export default function Cards() {
 
     return (
         <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-y-8 3xl:grid-cols-5">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 3xl:grid-cols-6 gap-y-8 gap-x-2 ">
                 {
                     sortedVideos.map(video => {
                         return (
                             <div key={video.id} className="p-4 rounded-lg flex flex-col gap-y-2">
                                 <div className="relative hover:cursor-pointer" onClick={() => { eh.onVideoDisplay(video.id) }}>
-                                    <Image src={video.thumbnailURL} height={300} width={400} alt="video-thumbnail" className="rounded-xl" />
+                                    <Image src={video.thumbnailURL} width={300} height={200} alt="video-thumbnail" className="rounded-xl" />
                                     <FaRegCirclePlay size={40} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
                                 </div>
                                 <div className="flex flex-row gap-x-2">
-                                    <Image src={video.profile.photo ?? '/owl.jpg'} width={1500} height={1500} alt="avatar" className="rounded-full w-10 h-10" />
+                                    <Image src={video.profile.photo ?? '/owl.jpg'} width={1500} height={1500} alt="avatar" className="rounded-full w-6 h-6" />
                                     <div className="flex flex-col h-16">
-                                        <p className="text-base font-semibold overflow-hidden">{video.title}</p>
+                                        <p className="text-[15px] font-semibold overflow-hidden">{video.title}</p>
                                         <p className="text-sm">{video.profile.username}</p>
                                     </div>
                                 </div>
@@ -164,7 +164,6 @@ function PlayVideo({ video, setSelectedVideo }: { video: Video, setSelectedVideo
 
             if (textareaRef.current) {
                 textareaRef.current.value = ''
-                console.log('comment content:', commentContent)
             }
             if (smallTextAreaRef.current) {
                 smallTextAreaRef.current.value = ''

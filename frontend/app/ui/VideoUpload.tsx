@@ -394,7 +394,7 @@ export default function VideoUpload() {
                                                 <div className="absolute top-0 left-0 mt-2 transform translate-y-10 z-10 font-light max-h-80 w-full rounded-lg overflow-auto bg-white">
                                                     {
                                                         fuzzyTags.map(name => (
-                                                            <a key={tagMap[name.toLowerCase()].id} className="block hover:bg-blue-200 px-2 py-1 hover:cursor-pointer text-sm" onClick={eh.onCategoryClicked}>{name}</a>
+                                                            <a key={tagMap[name.toLowerCase()].id} className="block hover:bg-blue-200 px-2 py-1 hover:cursor-pointer" onClick={eh.onCategoryClicked}>{name}</a>
                                                         ))
                                                     }
                                                 </div>

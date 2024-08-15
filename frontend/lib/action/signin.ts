@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { prismaClient } from "../db/data-source"
 import { getSession, newSession } from "../session"
 import { COOKIE_OAUTH_GOOGLE_STATE, COOKIE_SESSION, randToken } from "../util"
+import { VERIFIED } from "../db/entities"
 
 export type SigninState = {
     ok: boolean,
@@ -46,6 +47,9 @@ export async function signinByEmail(_: SigninState | null, formData: FormData): 
     const accounts: account[] = await prismaClient.$queryRaw`select * from account where identity_type ='email' and identity_value = ${parsedValue.data.email} and crypt(${parsedValue.data.password}, password) = password;`
     if (accounts.length == 0) {
         return { ok: false, error: { password: "email doesn't exist or incorrect password" } }
+    }
+    if (accounts[0].state !== VERIFIED) {
+        return { ok: false, error: { email: "email is not verified" } }
     }
     await newSession(accounts[0].id)
     redirect('/')

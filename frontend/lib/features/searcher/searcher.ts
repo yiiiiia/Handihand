@@ -20,7 +20,7 @@ const initialState: SearchParams = {
     searchBy: 'video',
     tags: [],
     pageNumber: 1,
-    pageSize: 20
+    pageSize: 100
 }
 
 export const searchSlice = createAppSlice({

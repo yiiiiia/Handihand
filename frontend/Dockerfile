@@ -31,8 +31,6 @@ USER node
 
 RUN yarn prisma generate
 
-COPY .env.production .env.production
-
 RUN yarn run build
 
 ENV NODE_ENV=production

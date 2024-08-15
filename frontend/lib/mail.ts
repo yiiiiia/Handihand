@@ -6,8 +6,8 @@ import { logger } from './logger'
 
 const transporter = createTransport({
     host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    port: 587,
+    requireTLS: true,
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -36,7 +36,7 @@ export async function sendEmail(from: string, to: string, confirmURL: string) {
             confirm_url: confirmURL
         },
     }
-    transporter.sendMail(mailOptions, (err, info) => {
+    transporter.sendMail(mailOptions, (err, _) => {
         if (err) {
             logger.error('ERROR: sending email: receive error from server: ', err)
         }
