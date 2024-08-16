@@ -123,9 +123,32 @@ export default function VideoUpload() {
             }
         },
 
+        onFileDropped: async (e: React.DragEvent) => {
+            e.preventDefault()
+            const files = e.dataTransfer.files
+            let video: File | null = null
+            if (files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    if (files[i].type.startsWith("video/")) {
+                        video = files[i]
+                    }
+                }
+            }
+            if (video) {
+                const { dataURL, duration } = await extractThumbnail(video)
+                setVideoFile(video)
+                setGeneratedCoverDataURL(dataURL)
+                setDuration(duration)
+                setPhase(1)
+            }
+        },
+
         onVideoFileSelected: async (e: ChangeEvent<HTMLInputElement>) => {
             if (e.target.files && e.target.files[0]) {
                 const video = e.target.files[0] as File
+                if (!video.type.startsWith("video/")) {
+                    return
+                }
                 const { dataURL, duration } = await extractThumbnail(video)
                 setVideoFile(video)
                 setGeneratedCoverDataURL(dataURL)
@@ -335,9 +358,9 @@ export default function VideoUpload() {
         <>
             {
                 phase === 0 &&
-                <div className="fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-50 py-10 z-10 transition-opacity duration-1000 opacity-100">
-                    <div className="max-h-full max-w-7xl overflow-auto sm:rounded-2xl">
-                        <div ref={mainAeraRef} className="grid place-content-center bg-gray-100 rounded-xl min-w-[64rem] min-h-[40rem]">
+                <div className="fixed left-0 top-0 flex h-full w-full items-center justify-center bg-black bg-opacity-50 py-10 z-10 transition-opacity duration-1000 opacity-100" >
+                    <div className="max-h-full max-w-7xl overflow-auto sm:rounded-2xl" onDrop={eh.onFileDropped} onDragOver={e => { e.preventDefault() }}>
+                        <div ref={mainAeraRef} className="grid place-content-center bg-gray-100 rounded-xl min-w-[64rem] min-h-[40rem]" >
                             <div className="flex flex-col justify-center items-center space-y-4">
                                 <FaCloudArrowUp size={80} className="text-gray-500" />
                                 <p className="font-semibold text-xl">Select video to upload</p>
