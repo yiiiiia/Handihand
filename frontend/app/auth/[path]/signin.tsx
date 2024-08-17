@@ -57,10 +57,12 @@ export default function Signin() {
     return (
         <>
             <div className='relative grid place-content-center h-screen w-screen'>
-                <Main />
-                <div className="absolute bottom-0 left-1/2 transform -translate-y-36 -translate-x-1/2 text-center w-1/4">
-                    <hr className="border-gray-300 w-full mt-10" />
-                    <p className='mt-10'>Don&apos;t have an account? <Link href={"/auth/signup"} className='text-red-600 hover:cursor-pointer'>Sign up</Link></p>
+                <div className='flex flex-col'>
+                    <Main />
+                    <div className="text-center w-full mt-20">
+                        <hr className="border-gray-300 w-full mt-10" />
+                        <p className='mt-10'>Don&apos;t have an account? <Link href={"/auth/signup"} className='text-red-600 hover:cursor-pointer'>Sign up</Link></p>
+                    </div>
                 </div>
             </div>
             {loading && <BusyModal />}
