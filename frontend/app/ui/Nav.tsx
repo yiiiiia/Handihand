@@ -94,6 +94,8 @@ export default function Nav() {
             if (countryMap[val.toLowerCase()]) {
                 const country = countryMap[val.toLowerCase()]
                 dispatch(setCountry(country.code))
+            } else {
+                dispatch(setCountry(''))
             }
         },
 
