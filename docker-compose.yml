@@ -10,6 +10,17 @@ services:
     ports:
       - "8888:5432"
 
+  postgres-testing:
+    image: postgres:16
+    container_name: handihand_db_test
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: handihand_testing
+    ports:
+      - "9999:5432"
+
   backend:
     image: gcr.io/focus-mechanic-431119-a9/handihand_backend:latest
     container_name: backend
@@ -53,3 +64,13 @@ services:
       - postgres
     environment:
       DATABASE_URL: postgres://postgres:postgres@handihand_db:5432/handihand_dev?sslmode=disable
+
+  db-migration-testing:
+    image: amacneil/dbmate:2
+    entrypoint: ["/bin/sh", "-c", "dbmate wait && dbmate migrate"]
+    volumes:
+      - "./db:/db"
+    depends_on:
+      - postgres-testing
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@handihand_db_test:5432/handihand_testing?sslmode=disable

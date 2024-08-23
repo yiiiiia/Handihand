@@ -216,51 +216,6 @@ async function handleVideoUpdates(req: NextRequest) {
     return new Response()
 }
 
-async function handleImageUpload(req: Request) {
-    const session = await getSession()
-    if (!session) {
-        redirect('/error')
-    }
-
-    const bucketName = process.env.GOOGLE_STORAGE_BUCKET_NAME
-    if (!bucketName) {
-        throw new Error('env "GOOGLE_STORAGE_BUCKET_NAME" is missing')
-    }
-
-    const formData = await req.formData()
-    const imageName = formData.get('imageName') as string
-    if (!imageName) {
-        return new Response('missing imageName', { status: StatusCodes.BAD_REQUEST })
-    }
-    const imageType = formData.get('imageType') as string
-    if (!imageType) {
-        return new Response('missing imageType', { status: StatusCodes.BAD_REQUEST })
-    }
-    if (!imageType.startsWith('image/')) {
-        return new Response('wrong image type', { status: StatusCodes.BAD_REQUEST })
-    }
-    const imageExt = getFileExtension(imageType)
-    if (!imageExt) {
-        logger.error(`failed to get image file extension for type: ${imageType}`)
-        return new Response('unsupported image type', { status: StatusCodes.BAD_REQUEST })
-    }
-
-    const expiresInSeconds = 60 * 60
-    const bucket = googleStorage.bucket(bucketName)
-    const imageDest = getFileDest(dirImage, imageName, imageExt)
-    const [imageSignedURL] = await bucket.file(imageDest).getSignedUrl({
-        version: "v4",
-        action: "write",
-        expires: Date.now() + expiresInSeconds * 1000,
-        contentType: imageType,
-    })
-
-    return Response.json({
-        signedURL: imageSignedURL,
-        dest: imageDest
-    })
-}
-
 async function handleImageUpdates(req: Request) {
     const session = await getSession()
     if (!session) {

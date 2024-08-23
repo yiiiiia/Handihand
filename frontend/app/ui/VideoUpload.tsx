@@ -248,8 +248,6 @@ export default function VideoUpload() {
                 return
             }
 
-            setSubmiting(true)
-
             if (!videoFile) {
                 throw new Error('no video file selected')
             }
@@ -281,6 +279,8 @@ export default function VideoUpload() {
                 setDescError('Description is required')
                 return
             }
+
+            setSubmiting(true)
 
             const signedURLReq: PostGetSignedURL = {
                 videoName: videoFile.name,

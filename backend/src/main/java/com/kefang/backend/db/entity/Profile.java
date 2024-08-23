@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 @Entity
@@ -13,6 +14,7 @@ import jakarta.persistence.Table;
 public class Profile {
 
     @Id
+    @SequenceGenerator(name = "profile_id_seq", sequenceName = "profile_id_seq", allocationSize = 1)
     @GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
     private long accountId;

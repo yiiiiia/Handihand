@@ -1,24 +1,26 @@
 package com.kefang.backend.db.entity;
 
+import java.util.Date;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
-import java.util.Date;
 
 @Entity
 @Table(name = "tag")
 public class Tag {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "tag_id_seq")
+    @SequenceGenerator(name = "tag_id_seq", sequenceName = "tag_id_seq", allocationSize = 1)
     private long id;
     private String word;
     private Date createdAt;
 
-    public Tag(long id, String word, Date createdAt) {
-        this.id = id;
+    public Tag(String word, Date createdAt) {
         this.word = word;
         this.createdAt = createdAt;
     }

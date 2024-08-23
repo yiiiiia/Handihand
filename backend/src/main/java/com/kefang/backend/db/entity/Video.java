@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 
@@ -14,7 +15,8 @@ import jakarta.persistence.Transient;
 public class Video {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "video_id_seq")
+    @SequenceGenerator(name = "video_id_seq", sequenceName = "video_id_seq", allocationSize = 1)
     private long id;
     private long accountId;
     private String countryCode;
@@ -27,15 +29,15 @@ public class Video {
     private String thumbnailUrl;
     private Date updatedAt;
     private Date createdAt;
+
     @Transient
     private Profile profile;
 
     public Video() {
     }
 
-    public Video(long id, long accountId, String countryCode, String title, String description, String name,
+    public Video(long accountId, String countryCode, String title, String description, String name,
             String type, Integer size, String uploadUrl, String thumbnailUrl, Date updatedAt, Date createdAt) {
-        this.id = id;
         this.accountId = accountId;
         this.countryCode = countryCode;
         this.title = title;

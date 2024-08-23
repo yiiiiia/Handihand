@@ -1,11 +1,12 @@
 package com.kefang.backend.db.entity;
 
-import java.sql.Date;
+import java.util.Date;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 
 @Entity
@@ -13,7 +14,8 @@ import jakarta.persistence.Table;
 public class Account {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "account_id_seq")
+    @SequenceGenerator(name = "account_id_seq", sequenceName = "account_id_seq", allocationSize = 1)
     private long id;
     private String identityType;
     private String identityValue;
@@ -24,8 +26,7 @@ public class Account {
     public Account() {
     }
 
-    public Account(long id, String identityType, String identityValue, String state, Date createdAt, Date deletedAt) {
-        this.id = id;
+    public Account(String identityType, String identityValue, String state, Date createdAt, Date deletedAt) {
         this.identityType = identityType;
         this.identityValue = identityValue;
         this.state = state;
